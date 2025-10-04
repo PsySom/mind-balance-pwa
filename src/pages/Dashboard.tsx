@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, BookOpen, Activity, Calendar, History, BarChart3 } from 'lucide-react';
+import { LogOut, BookOpen, Activity, Calendar, History, BarChart3, Settings as SettingsIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AIDiaryChat from '@/components/AIDiaryChat';
 import TrackersDashboard from '@/components/TrackersDashboard';
@@ -52,10 +52,15 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold bg-clip-text text-transparent" style={{ backgroundImage: 'var(--gradient-primary)' }}>
             PsyBalance
           </h1>
-          <Button variant="ghost" onClick={handleSignOut} className="gap-2">
-            <LogOut className="w-4 h-4" />
-            Выход
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <SettingsIcon className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" onClick={handleSignOut} className="gap-2">
+              <LogOut className="w-4 h-4" />
+              Выход
+            </Button>
+          </div>
         </div>
       </header>
 
