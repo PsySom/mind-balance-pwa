@@ -98,18 +98,24 @@ export default function AIDiaryChat() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(config.webhooks.diary, {
+      const webhookUrl = config.webhooks.diary;
+      const requestBody = {
+        userJwt,
+        user_id: userId,
+        message: messageText,
+        locale: 'ru',
+        session_id: sessionId || `session_${Date.now()}`,
+      };
+
+      console.log('Diary Webhook URL:', webhookUrl);
+      console.log('Request body:', requestBody);
+
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userJwt,
-          user_id: userId,
-          message: messageText,
-          locale: 'ru',
-          session_id: sessionId || `session_${Date.now()}`,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
