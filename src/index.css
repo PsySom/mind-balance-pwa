@@ -82,12 +82,19 @@ All colors MUST be HSL.
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
+@layer utilities {
+  /* Smooth scroll for the entire page */
+  html {
+    scroll-behavior: smooth;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  /* Focus indicators for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Smooth transitions for interactive elements */
+  a, button, [role="button"] {
+    @apply transition-colors duration-200;
   }
 }
