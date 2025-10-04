@@ -8,6 +8,7 @@ import { Send, Loader2, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import EmotionCard from './EmotionCard';
 import InsightsCard from './InsightsCard';
+import { config } from '@/lib/config';
 
 interface Message {
   id: string;
@@ -73,7 +74,7 @@ export default function AIDiaryChat() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://mentalbalans.com/webhook/ai-diary-message', {
+      const response = await fetch(config.webhooks.diary, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

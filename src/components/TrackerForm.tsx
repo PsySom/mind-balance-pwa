@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { config } from '@/lib/config';
 
 interface TrackerData {
   mood: number;
@@ -63,7 +64,7 @@ export default function TrackerForm({ onSubmitSuccess }: TrackerFormProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://mentalbalans.com/webhook/tracker-submit', {
+      const response = await fetch(config.webhooks.tracker, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
