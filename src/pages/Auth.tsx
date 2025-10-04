@@ -40,10 +40,25 @@ export default function Auth() {
     });
 
     if (error) {
+      let errorMessage = error.message;
+      
+      // Более понятные сообщения об ошибках
+      if (error.message.includes('Invalid login credentials')) {
+        errorMessage = 'Неверный email или пароль';
+      } else if (error.message.includes('Email not confirmed')) {
+        errorMessage = 'Подтвердите email, проверьте почту';
+      }
+      
       toast({
         title: 'Ошибка входа',
-        description: error.message,
+        description: errorMessage,
         variant: 'destructive',
+      });
+    } else {
+      // Успешный вход, переход произойдет автоматически через onAuthStateChange
+      toast({
+        title: 'Успешный вход',
+        description: 'Добро пожаловать!',
       });
     }
 
@@ -54,7 +69,7 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -63,16 +78,30 @@ export default function Auth() {
     });
 
     if (error) {
+      let errorMessage = error.message;
+      
+      // Более понятные сообщения об ошибках
+      if (error.message.includes('already registered') || error.message.includes('already exists')) {
+        errorMessage = 'Пользователь с таким email уже существует. Попробуйте войти.';
+      } else if (error.message.includes('Invalid email')) {
+        errorMessage = 'Неверный формат email';
+      } else if (error.message.includes('Password')) {
+        errorMessage = 'Пароль должен быть не менее 6 символов';
+      }
+      
       toast({
         title: 'Ошибка регистрации',
-        description: error.message,
+        description: errorMessage,
         variant: 'destructive',
       });
     } else {
+      // Если подтверждение почты отключено, пользователь автоматически войдет
       toast({
         title: 'Регистрация успешна',
-        description: 'Проверьте почту для подтверждения аккаунта',
+        description: 'Вы успешно зарегистрированы',
       });
+      
+      // Автоматический переход на dashboard произойдет через onAuthStateChange
     }
 
     setLoading(false);
