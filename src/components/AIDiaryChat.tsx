@@ -39,6 +39,7 @@ export default function AIDiaryChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [userJwt, setUserJwt] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -70,6 +71,7 @@ export default function AIDiaryChat() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageText = input.trim();
     setInput('');
     setIsLoading(true);
 
@@ -82,22 +84,35 @@ export default function AIDiaryChat() {
         body: JSON.stringify({
           userJwt,
           user_id: userId,
-          message: userMessage.content,
+          message: messageText,
           locale: 'ru',
+          session_id: sessionId || `session_${Date.now()}`,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Ошибка при получении ответа');
+        const errorText = await response.text();
+        console.error('Webhook error:', response.status, errorText);
+        throw new Error(`Ошибка при получении ответа: ${response.status}`);
       }
 
       const response_data = await response.json();
+      
+      if (!response_data.success) {
+        throw new Error('Webhook вернул ошибку');
+      }
+
       const data = response_data.data || response_data;
+
+      // Обновить session_id для следующих сообщений
+      if (data.session_id) {
+        setSessionId(data.session_id);
+      }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.ai_response,
+        content: data.ai_response || 'Ответ не получен',
         timestamp: new Date(),
         emotions: data.emotions,
         analysis: data.analysis,
@@ -105,12 +120,18 @@ export default function AIDiaryChat() {
 
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
+      // Вернуть поле ввода с исходным текстом
+      setInput(messageText);
+      
       toast({
         title: 'Ошибка',
-        description: 'Не удалось получить ответ от AI',
+        description: error instanceof Error ? error.message : 'Не удалось получить ответ от AI. Попробуйте еще раз.',
         variant: 'destructive',
       });
       console.error('Error:', error);
+      
+      // Удалить сообщение пользователя из чата, так как оно не было обработано
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
     } finally {
       setIsLoading(false);
     }
