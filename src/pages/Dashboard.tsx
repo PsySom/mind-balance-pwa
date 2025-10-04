@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { LogOut, Settings as SettingsIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import AIDiaryChat from '@/components/AIDiaryChat';
 import TrackersDashboard from '@/components/TrackersDashboard';
 import PlannerDashboard from '@/components/PlannerDashboard';
@@ -68,6 +69,7 @@ export default function Dashboard() {
                 </h1>
               </div>
               <div className="flex items-center gap-2">
+                <ThemeToggle />
                 <Button 
                   variant="ghost" 
                   size="icon" 
