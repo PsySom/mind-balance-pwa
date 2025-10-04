@@ -20,11 +20,19 @@ const categoryColors: Record<string, string> = {
 };
 
 export default function ActivitiesBarChart({ data }: ActivitiesBarChartProps) {
+  if (!data || data.length === 0) {
+    return null;
+  }
+
   const chartData = data.map(item => ({
-    name: categoryLabels[item.category] || item.category,
-    count: item.count,
-    fill: categoryColors[item.category] || '#666',
-  }));
+    name: categoryLabels[item?.category] || item?.category || 'Неизвестно',
+    count: item?.count || 0,
+    fill: categoryColors[item?.category] || '#666',
+  })).filter(item => item.count > 0);
+
+  if (chartData.length === 0) {
+    return null;
+  }
 
   return (
     <Card className="p-6">
@@ -35,7 +43,7 @@ export default function ActivitiesBarChart({ data }: ActivitiesBarChartProps) {
           <XAxis dataKey="name" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} />
           <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
-          <Bar dataKey="count" />
+          <Bar dataKey="count" fill="#8884d8" />
         </BarChart>
       </ResponsiveContainer>
     </Card>

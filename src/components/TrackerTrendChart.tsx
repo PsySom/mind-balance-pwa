@@ -15,9 +15,13 @@ interface TrackerTrendChartProps {
 }
 
 export default function TrackerTrendChart({ data }: TrackerTrendChartProps) {
+  if (!data || data.length === 0) {
+    return null;
+  }
+
   const formattedData = data.map(item => ({
     ...item,
-    dateFormatted: format(parseISO(item.date), 'dd MMM', { locale: ru }),
+    dateFormatted: format(parseISO(item?.date || new Date().toISOString()), 'dd MMM', { locale: ru }),
   }));
 
   return (

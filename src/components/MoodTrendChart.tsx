@@ -8,9 +8,14 @@ interface MoodTrendChartProps {
 }
 
 export default function MoodTrendChart({ data }: MoodTrendChartProps) {
+  if (!data || data.length === 0) {
+    return null;
+  }
+
   const formattedData = data.map(item => ({
     ...item,
-    dateFormatted: format(parseISO(item.date), 'dd MMM', { locale: ru }),
+    dateFormatted: format(parseISO(item?.date || new Date().toISOString()), 'dd MMM', { locale: ru }),
+    mood_score: item?.mood_score || 0,
   }));
 
   const getMoodColor = (value: number) => {

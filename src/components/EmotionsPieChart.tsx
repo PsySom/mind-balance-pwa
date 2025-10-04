@@ -28,11 +28,19 @@ const emotionLabels: Record<string, string> = {
 };
 
 export default function EmotionsPieChart({ data }: EmotionsPieChartProps) {
+  if (!data || data.length === 0) {
+    return null;
+  }
+
   const chartData = data.map(item => ({
-    name: emotionLabels[item.emotion] || item.emotion,
-    value: item.count,
-    color: emotionColors[item.emotion] || '#666',
-  }));
+    name: emotionLabels[item?.emotion] || item?.emotion || 'Неизвестно',
+    value: item?.count || 0,
+    color: emotionColors[item?.emotion] || '#666',
+  })).filter(item => item.value > 0);
+
+  if (chartData.length === 0) {
+    return null;
+  }
 
   return (
     <Card className="p-6">
