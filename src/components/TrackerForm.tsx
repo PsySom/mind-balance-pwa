@@ -6,7 +6,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Loader2, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { config } from '@/lib/config';
 
@@ -123,16 +129,27 @@ export default function TrackerForm({ onSubmitSuccess }: TrackerFormProps) {
 
   return (
     <Card className="p-6 space-y-6 animate-fade-in">
-      <div className="space-y-6">
-        {sliders.map(({ key, label, color, description }) => (
-          <div key={key} className="space-y-2">
-            <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                <Label className="text-sm font-medium">{label}</Label>
-                <p className="text-xs text-muted-foreground">{description}</p>
+      <TooltipProvider>
+        <div className="space-y-6">
+          {sliders.map(({ key, label, color, description }) => (
+            <div key={key} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">{label}</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p className="text-sm">{description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{description}</p>
+                </div>
+                <span className="text-lg font-semibold tabular-nums">{values[key]}/10</span>
               </div>
-              <span className="text-lg font-semibold tabular-nums">{values[key]}/10</span>
-            </div>
             <Slider
               value={[values[key]]}
               onValueChange={(value) => handleSliderChange(key, value)}
@@ -151,7 +168,17 @@ export default function TrackerForm({ onSubmitSuccess }: TrackerFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="note">Заметка (опционально)</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="note">Заметка (опционально)</Label>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="text-sm">Добавьте контекст: что происходило в этот момент, что повлияло на ваше состояние</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <Textarea
           id="note"
           value={values.note}
@@ -161,21 +188,29 @@ export default function TrackerForm({ onSubmitSuccess }: TrackerFormProps) {
         />
       </div>
 
-      <Button
-        onClick={handleSubmit}
-        disabled={isLoading}
-        className="w-full"
-        size="lg"
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Сохранение...
-          </>
-        ) : (
-          'Сохранить'
-        )}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={handleSubmit}
+            disabled={isLoading}
+            className="w-full"
+            size="lg"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Сохранение...
+              </>
+            ) : (
+              'Сохранить'
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-sm">Данные будут сохранены в облако</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
     </Card>
   );
 }

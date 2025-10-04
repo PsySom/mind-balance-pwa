@@ -3,8 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { LogOut, Settings as SettingsIcon, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import AIDiaryChat from '@/components/AIDiaryChat';
@@ -70,22 +76,55 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <ThemeToggle />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => navigate('/settings')}
-                  aria-label="Настройки"
-                >
-                  <SettingsIcon className="w-5 h-5" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  onClick={handleSignOut} 
-                  className="gap-2 hidden md:flex"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Выход
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => navigate('/help')}
+                        aria-label="Справка"
+                      >
+                        <HelpCircle className="w-5 h-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Справка и инструкции</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => navigate('/settings')}
+                        aria-label="Настройки"
+                      >
+                        <SettingsIcon className="w-5 h-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Настройки профиля</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        onClick={handleSignOut} 
+                        className="gap-2 hidden md:flex"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Выход
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Выйти из аккаунта</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           </header>
