@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogOut, BookOpen, Activity, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AIDiaryChat from '@/components/AIDiaryChat';
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -72,12 +73,7 @@ export default function Dashboard() {
           </TabsList>
 
           <TabsContent value="journal" className="space-y-4">
-            <div className="bg-card rounded-2xl p-8 shadow-lg" style={{ boxShadow: 'var(--shadow-soft)' }}>
-              <h2 className="text-2xl font-semibold mb-4">AI Дневник</h2>
-              <p className="text-muted-foreground">
-                Здесь будет чат-интерфейс для общения с AI помощником
-              </p>
-            </div>
+            <AIDiaryChat />
           </TabsContent>
 
           <TabsContent value="trackers" className="space-y-4">
