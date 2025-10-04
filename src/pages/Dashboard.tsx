@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, BookOpen, Activity, Calendar } from 'lucide-react';
+import { LogOut, BookOpen, Activity, Calendar, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AIDiaryChat from '@/components/AIDiaryChat';
 import TrackersDashboard from '@/components/TrackersDashboard';
 import PlannerDashboard from '@/components/PlannerDashboard';
+import HistoryDashboard from '@/components/HistoryDashboard';
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -59,7 +60,7 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto p-6">
         <Tabs defaultValue="journal" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto h-14">
+          <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto h-14">
             <TabsTrigger value="journal" className="gap-2">
               <BookOpen className="w-4 h-4" />
               <span className="hidden sm:inline">Дневник</span>
@@ -71,6 +72,10 @@ export default function Dashboard() {
             <TabsTrigger value="planner" className="gap-2">
               <Calendar className="w-4 h-4" />
               <span className="hidden sm:inline">Планировщик</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">История</span>
             </TabsTrigger>
           </TabsList>
 
@@ -84,6 +89,10 @@ export default function Dashboard() {
 
           <TabsContent value="planner" className="space-y-4">
             <PlannerDashboard />
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4">
+            <HistoryDashboard />
           </TabsContent>
         </Tabs>
       </main>

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -16,11 +15,12 @@ interface TrackerEntry {
   timestamp: Date;
 }
 
-interface TrackerHistoryProps {
+interface LocalTrackerHistoryProps {
   entries: TrackerEntry[];
 }
 
-export default function TrackerHistory({ entries }: TrackerHistoryProps) {
+export default function LocalTrackerHistory({ entries }: LocalTrackerHistoryProps) {
+
   const getBarColor = (value: number) => {
     if (value <= 3) return 'bg-red-500';
     if (value <= 6) return 'bg-yellow-500';

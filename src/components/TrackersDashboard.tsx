@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import TrackerForm from './TrackerForm';
-import TrackerHistory from './TrackerHistory';
+import LocalTrackerHistory from './LocalTrackerHistory';
 
 interface TrackerEntry {
   mood: number;
@@ -31,7 +31,7 @@ export default function TrackersDashboard() {
         <TrackerForm onSubmitSuccess={handleNewEntry} />
       </div>
       <div>
-        <TrackerHistory entries={recentEntries} />
+        <LocalTrackerHistory entries={recentEntries} />
       </div>
     </div>
   );
