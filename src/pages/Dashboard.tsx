@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogOut, BookOpen, Activity, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AIDiaryChat from '@/components/AIDiaryChat';
+import TrackersDashboard from '@/components/TrackersDashboard';
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -77,12 +78,7 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="trackers" className="space-y-4">
-            <div className="bg-card rounded-2xl p-8 shadow-lg" style={{ boxShadow: 'var(--shadow-soft)' }}>
-              <h2 className="text-2xl font-semibold mb-4">Трекеры состояния</h2>
-              <p className="text-muted-foreground">
-                Здесь будут шкалы для отслеживания настроения, энергии и других параметров
-              </p>
-            </div>
+            <TrackersDashboard />
           </TabsContent>
 
           <TabsContent value="planner" className="space-y-4">
