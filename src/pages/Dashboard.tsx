@@ -7,6 +7,7 @@ import { LogOut, BookOpen, Activity, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AIDiaryChat from '@/components/AIDiaryChat';
 import TrackersDashboard from '@/components/TrackersDashboard';
+import PlannerDashboard from '@/components/PlannerDashboard';
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -82,12 +83,7 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="planner" className="space-y-4">
-            <div className="bg-card rounded-2xl p-8 shadow-lg" style={{ boxShadow: 'var(--shadow-soft)' }}>
-              <h2 className="text-2xl font-semibold mb-4">Планировщик активностей</h2>
-              <p className="text-muted-foreground">
-                Здесь будет календарь и список запланированных активностей
-              </p>
-            </div>
+            <PlannerDashboard />
           </TabsContent>
         </Tabs>
       </main>
