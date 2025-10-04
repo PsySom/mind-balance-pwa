@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
@@ -35,6 +36,7 @@ export default function TrackerForm({ onSubmitSuccess }: TrackerFormProps) {
   const [userId, setUserId] = useState<string>('');
   const [userJwt, setUserJwt] = useState<string>('');
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const getSession = async () => {
@@ -81,9 +83,12 @@ export default function TrackerForm({ onSubmitSuccess }: TrackerFormProps) {
       }
 
       toast({
-        title: 'Успешно сохранено',
+        title: 'Трекер сохранен',
         description: 'Ваши данные отслеживания записаны',
       });
+
+      // Инвалидировать React Query кэш
+      queryClient.invalidateQueries({ queryKey: ['tracker-records'] });
 
       onSubmitSuccess({ ...values, timestamp: new Date() });
 
