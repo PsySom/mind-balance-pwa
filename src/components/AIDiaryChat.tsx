@@ -3,14 +3,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Loader2 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Send, Loader2, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import EmotionCard from './EmotionCard';
+import InsightsCard from './InsightsCard';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  emotions?: {
+    primary: string;
+    intensity: string;
+    triggers: string[];
+  };
+  analysis?: {
+    cognitive_distortions: string[];
+    themes: string[];
+    mood_score: number;
+  };
 }
 
 interface DiaryResponse {
@@ -25,7 +38,6 @@ export default function AIDiaryChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [userJwt, setUserJwt] = useState<string>('');
-  const [savedData, setSavedData] = useState<{ emotions?: any; analysis?: any }>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -85,15 +97,11 @@ export default function AIDiaryChat() {
         role: 'assistant',
         content: data.ai_response,
         timestamp: new Date(),
+        emotions: data.emotions,
+        analysis: data.analysis,
       };
 
       setMessages(prev => [...prev, aiMessage]);
-
-      // Сохраняем emotions и analysis для следующего шага
-      setSavedData({
-        emotions: data.emotions,
-        analysis: data.analysis,
-      });
     } catch (error) {
       toast({
         title: 'Ошибка',
@@ -128,17 +136,44 @@ export default function AIDiaryChat() {
               key={message.id}
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
             >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                }`}
-              >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                <span className="text-xs opacity-70 mt-1 block">
-                  {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+              <div className={`max-w-[80%] space-y-2 ${message.role === 'user' ? '' : 'w-full'}`}>
+                <div
+                  className={`rounded-2xl px-4 py-3 ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-foreground'
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <span className="text-xs opacity-70 mt-1 block">
+                    {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+
+                {message.role === 'assistant' && (message.emotions || message.analysis) && (
+                  <Collapsible className="w-full">
+                    <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                      <ChevronDown className="w-4 h-4" />
+                      <span>Показать анализ</span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-2 mt-2">
+                      {message.emotions && (
+                        <EmotionCard
+                          primary={message.emotions.primary}
+                          intensity={message.emotions.intensity}
+                          triggers={message.emotions.triggers}
+                        />
+                      )}
+                      {message.analysis && (
+                        <InsightsCard
+                          cognitive_distortions={message.analysis.cognitive_distortions}
+                          themes={message.analysis.themes}
+                          mood_score={message.analysis.mood_score}
+                        />
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
             </div>
           ))}
