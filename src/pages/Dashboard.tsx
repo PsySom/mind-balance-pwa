@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, BookOpen, Activity, Calendar, History } from 'lucide-react';
+import { LogOut, BookOpen, Activity, Calendar, History, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AIDiaryChat from '@/components/AIDiaryChat';
 import TrackersDashboard from '@/components/TrackersDashboard';
 import PlannerDashboard from '@/components/PlannerDashboard';
 import HistoryDashboard from '@/components/HistoryDashboard';
+import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -60,7 +61,7 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto p-6">
         <Tabs defaultValue="journal" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto h-14">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto h-14">
             <TabsTrigger value="journal" className="gap-2">
               <BookOpen className="w-4 h-4" />
               <span className="hidden sm:inline">Дневник</span>
@@ -76,6 +77,10 @@ export default function Dashboard() {
             <TabsTrigger value="history" className="gap-2">
               <History className="w-4 h-4" />
               <span className="hidden sm:inline">История</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Аналитика</span>
             </TabsTrigger>
           </TabsList>
 
@@ -93,6 +98,10 @@ export default function Dashboard() {
 
           <TabsContent value="history" className="space-y-4">
             <HistoryDashboard />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <AnalyticsDashboard />
           </TabsContent>
         </Tabs>
       </main>
