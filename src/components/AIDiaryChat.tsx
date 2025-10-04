@@ -90,7 +90,8 @@ export default function AIDiaryChat() {
         throw new Error('Ошибка при получении ответа');
       }
 
-      const data: DiaryResponse = await response.json();
+      const response_data = await response.json();
+      const data = response_data.data || response_data;
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
