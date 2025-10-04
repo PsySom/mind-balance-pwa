@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { List, Lightbulb } from 'lucide-react';
 import ActivityForm from './ActivityForm';
 import ActivityList from './ActivityList';
+import TemplateList from './TemplateList';
 
 interface Activity {
   id: string;
@@ -23,6 +26,7 @@ export default function PlannerDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [userJwt, setUserJwt] = useState<string>('');
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -94,14 +98,17 @@ export default function PlannerDashboard() {
     }
   };
 
-  const handleCreate = async (activity: Omit<Activity, 'id'>) => {
+  const handleCreate = async (activity: Omit<Activity, 'id'>, source?: string) => {
     setIsLoading(true);
     try {
-      await handleWebhookRequest('create', { activity });
+      await handleWebhookRequest('create', { 
+        activity: { ...activity, source: source || 'manual' }
+      });
       toast({
         title: 'Активность создана',
         description: 'Новая активность успешно добавлена',
       });
+      setSelectedTemplate(null);
     } catch (error) {
       toast({
         title: 'Ошибка',
@@ -159,20 +166,61 @@ export default function PlannerDashboard() {
     await handleUpdate(id, { ...activity, status: newStatus });
   };
 
+  const handleSelectTemplate = (template: any) => {
+    setSelectedTemplate({
+      title: template.title.ru,
+      category: template.category,
+      date: new Date().toISOString().split('T')[0],
+      duration_minutes: template.duration_min,
+      status: 'planned' as const,
+      start_time: '',
+      end_time: '',
+      note: template.description?.ru || '',
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold">Планировщик активностей</h2>
-        <ActivityForm isLoading={isLoading} onSubmit={handleCreate} />
+        {selectedTemplate ? (
+          <ActivityForm
+            isLoading={isLoading}
+            onSubmit={(data) => handleCreate(data, 'template')}
+            activity={selectedTemplate}
+            trigger={null}
+          />
+        ) : (
+          <ActivityForm isLoading={isLoading} onSubmit={(data) => handleCreate(data)} />
+        )}
       </div>
 
-      <ActivityList
-        activities={activities}
-        isLoading={isLoading}
-        onToggleComplete={handleToggleComplete}
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
-      />
+      <Tabs defaultValue="activities" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="activities" className="gap-2">
+            <List className="w-4 h-4" />
+            Мои активности
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <Lightbulb className="w-4 h-4" />
+            Рекомендации
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="activities" className="space-y-4">
+          <ActivityList
+            activities={activities}
+            isLoading={isLoading}
+            onToggleComplete={handleToggleComplete}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+          />
+        </TabsContent>
+
+        <TabsContent value="templates" className="space-y-4">
+          <TemplateList onSelectTemplate={handleSelectTemplate} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
