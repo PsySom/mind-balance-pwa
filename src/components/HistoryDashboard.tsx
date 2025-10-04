@@ -45,7 +45,7 @@ export default function HistoryDashboard() {
         </TabsContent>
 
         <TabsContent value="trackers">
-          <TrackerHistoryFromSupabase userId={userId} userJwt={userJwt} />
+          <TrackerHistoryFromSupabase userId={userId} />
         </TabsContent>
       </Tabs>
     </div>

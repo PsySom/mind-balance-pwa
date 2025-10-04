@@ -29,8 +29,8 @@ export default function TrackersDashboard() {
         <TrackerForm onSubmitSuccess={handleSubmit} />
       </div>
       <div>
-        {userId && userJwt && (
-          <TrackerHistoryFromSupabase userId={userId} userJwt={userJwt} />
+        {userId && (
+          <TrackerHistoryFromSupabase userId={userId} />
         )}
       </div>
     </div>
