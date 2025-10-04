@@ -1,37 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import TrackerForm from './TrackerForm';
-import LocalTrackerHistory from './LocalTrackerHistory';
-
-interface TrackerEntry {
-  mood: number;
-  stress: number;
-  energy: number;
-  process_satisfaction: number;
-  result_satisfaction: number;
-  note: string;
-  timestamp: Date;
-}
+import TrackerHistoryFromSupabase from './TrackerHistoryFromSupabase';
 
 export default function TrackersDashboard() {
-  const [entries, setEntries] = useState<TrackerEntry[]>([]);
+  const [userId, setUserId] = useState<string>('');
+  const [userJwt, setUserJwt] = useState<string>('');
 
-  const handleNewEntry = (entry: TrackerEntry) => {
-    setEntries(prev => [entry, ...prev].slice(0, 20)); // Храним последние 20 записей
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUserId(session.user.id);
+        setUserJwt(session.access_token);
+      }
+    };
+    getSession();
+  }, []);
+
+  const handleSubmit = () => {
+    // Отправка обрабатывается внутри TrackerForm
   };
-
-  // Фильтруем записи за последние 7 дней
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const recentEntries = entries.filter(entry => entry.timestamp >= sevenDaysAgo);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div>
         <h2 className="text-2xl font-semibold mb-4">Отслеживание состояния</h2>
-        <TrackerForm onSubmitSuccess={handleNewEntry} />
+        <TrackerForm onSubmitSuccess={handleSubmit} />
       </div>
       <div>
-        <LocalTrackerHistory entries={recentEntries} />
+        {userId && userJwt && (
+          <TrackerHistoryFromSupabase userId={userId} userJwt={userJwt} />
+        )}
       </div>
     </div>
   );

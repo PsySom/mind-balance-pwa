@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { ChevronDown, Calendar, Loader2 } from 'lucide-react';
 import { format, parseISO, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { config } from '@/lib/config';
 
 interface TrackerRecord {
   id: string;
@@ -22,9 +23,6 @@ interface TrackerHistoryFromSupabaseProps {
   userId: string;
   userJwt: string;
 }
-
-const SUPABASE_URL = 'https://wzgmfdtqxtuzujipoimc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6Z21mZHRxeHR1enVqaXBvaW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5Nzc5NzIsImV4cCI6MjA3NDU1Mzk3Mn0.6uBF_pdzy8PjSAPOvGwSonmWul8YYHBDwAMHz7Tytb8';
 
 export default function TrackerHistoryFromSupabase({ userId, userJwt }: TrackerHistoryFromSupabaseProps) {
   const [records, setRecords] = useState<TrackerRecord[]>([]);
@@ -46,10 +44,10 @@ export default function TrackerHistoryFromSupabase({ userId, userJwt }: TrackerH
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/tracker_records?user_id=eq.${userId}&order=timestamp.desc&limit=20`,
+        `${config.supabase.url}/rest/v1/tracker_records?user_id=eq.${userId}&order=timestamp.desc&limit=20`,
         {
           headers: {
-            'apikey': SUPABASE_ANON_KEY,
+            'apikey': config.supabase.anonKey,
             'Authorization': `Bearer ${userJwt}`,
           },
         }

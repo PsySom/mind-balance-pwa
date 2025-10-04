@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { ChevronDown, Calendar, Loader2, AlertCircle, Smile, Frown, Flame, XCircle, Shield, Sparkles, Clock } from 'lucide-react';
 import { format, parseISO, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { config } from '@/lib/config';
 
 interface DiaryEntry {
   id: string;
@@ -41,9 +42,6 @@ const emotionConfig: Record<string, { name: string; icon: any; color: string }> 
   anticipation: { name: 'Предвкушение', icon: Clock, color: 'text-orange-500' },
 };
 
-const SUPABASE_URL = 'https://wzgmfdtqxtuzujipoimc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6Z21mZHRxeHR1enVqaXBvaW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5Nzc5NzIsImV4cCI6MjA3NDU1Mzk3Mn0.6uBF_pdzy8PjSAPOvGwSonmWul8YYHBDwAMHz7Tytb8';
-
 export default function DiaryHistory({ userId, userJwt }: DiaryHistoryProps) {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [filteredEntries, setFilteredEntries] = useState<DiaryEntry[]>([]);
@@ -66,10 +64,10 @@ export default function DiaryHistory({ userId, userJwt }: DiaryHistoryProps) {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/ai_diary_messages?user_id=eq.${userId}&order=created_at.desc&limit=20`,
+        `${config.supabase.url}/rest/v1/ai_diary_messages?user_id=eq.${userId}&order=created_at.desc&limit=20`,
         {
           headers: {
-            'apikey': SUPABASE_ANON_KEY,
+            'apikey': config.supabase.anonKey,
             'Authorization': `Bearer ${userJwt}`,
           },
         }
