@@ -8,6 +8,7 @@ import { ChevronDown, Calendar, Loader2, AlertCircle, Smile, Frown, Flame, XCirc
 import { format, parseISO, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { config } from '@/lib/config';
+import EmotionBadge from './EmotionBadge';
 
 interface DiaryEntry {
   id: string;
@@ -40,6 +41,20 @@ const emotionConfig: Record<string, { name: string; icon: any; color: string }> 
   trust: { name: 'Доверие', icon: Shield, color: 'text-teal-500' },
   surprise: { name: 'Удивление', icon: Sparkles, color: 'text-pink-500' },
   anticipation: { name: 'Предвкушение', icon: Clock, color: 'text-orange-500' },
+};
+
+const cognitiveDistortionLabels: Record<string, string> = {
+  catastrophizing: 'Катастрофизация',
+  black_white_thinking: 'Черно-белое мышление',
+  overgeneralization: 'Сверхобобщение',
+  mind_reading: 'Чтение мыслей',
+  personalization: 'Персонализация',
+};
+
+const getMoodScoreColor = (score: number): string => {
+  if (score <= 3) return 'text-red-500 bg-red-500/10 border-red-500/20';
+  if (score <= 6) return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
+  return 'text-green-500 bg-green-500/10 border-green-500/20';
 };
 
 export default function DiaryHistory({ userId, userJwt }: DiaryHistoryProps) {
@@ -184,77 +199,115 @@ export default function DiaryHistory({ userId, userJwt }: DiaryHistoryProps) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredEntries.map((entry) => {
-            const EmotionIcon = entry.emotions?.primary 
-              ? emotionConfig[entry.emotions.primary]?.icon 
-              : null;
-            const emotionColor = entry.emotions?.primary
-              ? emotionConfig[entry.emotions.primary]?.color
-              : '';
-
-            return (
-              <Collapsible key={entry.id}>
-                <Card className="p-4">
-                  <CollapsibleTrigger className="w-full">
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0 mt-1">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
+          {filteredEntries.map((entry) => (
+            <Collapsible key={entry.id}>
+              <Card className="p-4">
+                <CollapsibleTrigger className="w-full">
+                  <div className="flex items-start gap-3">
+                    <div className="shrink-0 mt-1">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 text-left space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {format(parseISO(entry.created_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
+                        </span>
+                        <ChevronDown className="w-4 h-4 shrink-0" />
                       </div>
-                      <div className="flex-1 text-left space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            {format(parseISO(entry.created_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
-                          </span>
-                          <ChevronDown className="w-4 h-4 shrink-0" />
-                        </div>
-                        <p className="text-sm line-clamp-2">
-                          {entry.message.slice(0, 100)}
-                          {entry.message.length > 100 && '...'}
-                        </p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {EmotionIcon && (
-                            <Badge variant="secondary" className="text-xs">
-                              <EmotionIcon className={`w-3 h-3 ${emotionColor} mr-1`} />
-                              {emotionConfig[entry.emotions!.primary].name}
-                            </Badge>
-                          )}
-                          {entry.analysis?.mood_score !== undefined && (
-                            <Badge variant="outline" className="text-xs">
-                              Настроение: {entry.analysis.mood_score}/10
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-4 mt-4 border-t border-border space-y-3">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-semibold">Ваше сообщение:</h4>
-                      <p className="text-sm text-muted-foreground">{entry.message}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-semibold">Ответ AI:</h4>
-                      <p className="text-sm">{entry.ai_response}</p>
-                    </div>
-                    {entry.analysis && (
-                      <div className="space-y-2 pt-2 border-t border-border">
-                        <h4 className="text-sm font-semibold">Анализ:</h4>
-                        {entry.analysis.themes && entry.analysis.themes.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {entry.analysis.themes.map((theme, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {theme}
-                              </Badge>
-                            ))}
-                          </div>
+                      <p className="text-sm line-clamp-2">
+                        {entry.message.slice(0, 100)}
+                        {entry.message.length > 100 && '...'}
+                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {entry.emotions?.primary && (
+                          <EmotionBadge
+                            emotion={entry.emotions.primary}
+                            intensity={(entry.emotions.intensity as 'low' | 'moderate' | 'high') || 'moderate'}
+                            size="sm"
+                          />
+                        )}
+                        {entry.analysis?.mood_score !== undefined && (
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${getMoodScoreColor(entry.analysis.mood_score)}`}
+                          >
+                            Настроение: {entry.analysis.mood_score}/10
+                          </Badge>
                         )}
                       </div>
-                    )}
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            );
-          })}
+                    </div>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4 mt-4 border-t border-border space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold">Ваше сообщение:</h4>
+                    <p className="text-sm text-muted-foreground">{entry.message}</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold">Ответ AI:</h4>
+                    <p className="text-sm">{entry.ai_response}</p>
+                  </div>
+                  
+                  {entry.analysis && (
+                    <Collapsible className="space-y-2">
+                      <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold hover:text-primary transition-colors">
+                        <ChevronDown className="w-4 h-4" />
+                        <span>Анализ</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3 pt-2">
+                        {entry.analysis.mood_score !== undefined && (
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Оценка настроения:</Label>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full ${getMoodScoreColor(entry.analysis.mood_score).split(' ')[0].replace('text-', 'bg-')}`}
+                                  style={{ width: `${entry.analysis.mood_score * 10}%` }}
+                                />
+                              </div>
+                              <Badge 
+                                variant="outline"
+                                className={`text-xs ${getMoodScoreColor(entry.analysis.mood_score)}`}
+                              >
+                                {entry.analysis.mood_score}/10
+                              </Badge>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {entry.analysis.cognitive_distortions && entry.analysis.cognitive_distortions.length > 0 && (
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Когнитивные искажения:</Label>
+                            <div className="flex flex-wrap gap-1">
+                              {entry.analysis.cognitive_distortions.map((distortion, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-xs">
+                                  {cognitiveDistortionLabels[distortion] || distortion}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {entry.analysis.themes && entry.analysis.themes.length > 0 && (
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Ключевые темы:</Label>
+                            <div className="flex flex-wrap gap-1">
+                              {entry.analysis.themes.map((theme, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {theme}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          ))}
         </div>
       )}
     </div>
