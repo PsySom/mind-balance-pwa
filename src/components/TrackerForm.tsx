@@ -113,22 +113,25 @@ export default function TrackerForm({ onSubmitSuccess }: TrackerFormProps) {
     }
   };
 
-  const sliders: Array<{ key: 'mood' | 'stress' | 'energy' | 'process_satisfaction' | 'result_satisfaction'; label: string; color: string }> = [
-    { key: 'mood', label: 'Настроение', color: 'bg-blue-500' },
-    { key: 'stress', label: 'Стресс', color: 'bg-red-500' },
-    { key: 'energy', label: 'Энергия', color: 'bg-green-500' },
-    { key: 'process_satisfaction', label: 'Удовлетворённость процессом', color: 'bg-purple-500' },
-    { key: 'result_satisfaction', label: 'Удовлетворённость результатом', color: 'bg-orange-500' },
+  const sliders: Array<{ key: 'mood' | 'stress' | 'energy' | 'process_satisfaction' | 'result_satisfaction'; label: string; color: string; description: string }> = [
+    { key: 'mood', label: 'Настроение', color: 'bg-blue-500', description: 'Как вы себя чувствуете эмоционально?' },
+    { key: 'stress', label: 'Стресс', color: 'bg-red-500', description: 'Уровень напряжения и тревоги' },
+    { key: 'energy', label: 'Энергия', color: 'bg-green-500', description: 'Физическая и ментальная бодрость' },
+    { key: 'process_satisfaction', label: 'Удовлетворённость процессом', color: 'bg-purple-500', description: 'Насколько вам нравится то, чем вы занимаетесь' },
+    { key: 'result_satisfaction', label: 'Удовлетворённость результатом', color: 'bg-orange-500', description: 'Довольны ли вы результатами своей работы' },
   ];
 
   return (
-    <Card className="p-6 space-y-6">
+    <Card className="p-6 space-y-6 animate-fade-in">
       <div className="space-y-6">
-        {sliders.map(({ key, label, color }) => (
+        {sliders.map(({ key, label, color, description }) => (
           <div key={key} className="space-y-2">
             <div className="flex justify-between items-center">
-              <Label className="text-sm font-medium">{label}</Label>
-              <span className="text-sm font-semibold">{values[key]}/10</span>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">{label}</Label>
+                <p className="text-xs text-muted-foreground">{description}</p>
+              </div>
+              <span className="text-lg font-semibold tabular-nums">{values[key]}/10</span>
             </div>
             <Slider
               value={[values[key]]}

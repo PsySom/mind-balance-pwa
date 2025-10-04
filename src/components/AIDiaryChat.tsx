@@ -41,7 +41,29 @@ export default function AIDiaryChat() {
   const [userJwt, setUserJwt] = useState<string>('');
   const [sessionId, setSessionId] = useState<string>('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
+
+  // Автофокус на поле ввода при монтировании
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  // Сохранение draft в localStorage
+  useEffect(() => {
+    const draft = localStorage.getItem('ai-diary-draft');
+    if (draft) {
+      setInput(draft);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (input) {
+      localStorage.setItem('ai-diary-draft', input);
+    } else {
+      localStorage.removeItem('ai-diary-draft');
+    }
+  }, [input]);
 
   useEffect(() => {
     const getSession = async () => {
@@ -138,15 +160,19 @@ export default function AIDiaryChat() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      handleSend();
+    }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       handleSend();
     }
   };
 
   return (
-    <div className="flex flex-col h-[600px] bg-card rounded-2xl shadow-lg" style={{ boxShadow: 'var(--shadow-soft)' }}>
-      <ScrollArea className="flex-1 p-6" ref={scrollRef}>
+    <div className="flex flex-col h-[500px] md:h-[600px] bg-card rounded-2xl shadow-lg animate-fade-in" style={{ boxShadow: 'var(--shadow-soft)' }}>
+      <ScrollArea className="flex-1 p-4 md:p-6" ref={scrollRef}>
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center text-muted-foreground py-12">
@@ -159,7 +185,7 @@ export default function AIDiaryChat() {
               key={message.id}
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
             >
-              <div className={`max-w-[80%] space-y-2 ${message.role === 'user' ? '' : 'w-full'}`}>
+              <div className={`max-w-[85%] md:max-w-[80%] space-y-2 ${message.role === 'user' ? '' : 'w-full'}`}>
                 <div
                   className={`rounded-2xl px-4 py-3 ${
                     message.role === 'user'
@@ -202,8 +228,9 @@ export default function AIDiaryChat() {
           ))}
           {isLoading && (
             <div className="flex justify-start animate-fade-in">
-              <div className="bg-muted rounded-2xl px-4 py-3">
-                <Loader2 className="w-5 h-5 animate-spin" />
+              <div className="bg-muted rounded-2xl px-4 py-3 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm text-muted-foreground">AI печатает...</span>
               </div>
             </div>
           )}
@@ -213,10 +240,11 @@ export default function AIDiaryChat() {
       <div className="border-t border-border p-4">
         <div className="flex gap-2">
           <Textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
-            placeholder="Напишите сообщение..."
+            placeholder="Напишите сообщение... (Enter или Ctrl+Enter для отправки)"
             className="min-h-[60px] resize-none"
             disabled={isLoading}
           />

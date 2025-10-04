@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronDown, Calendar } from 'lucide-react';
+import { ChevronDown, Calendar, Search } from 'lucide-react';
 import { format, parseISO, subDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -27,6 +28,7 @@ interface TrackerHistoryFromSupabaseProps {
 
 export default function TrackerHistoryFromSupabase({ userId }: TrackerHistoryFromSupabaseProps) {
   const [dateFilter, setDateFilter] = useState('7');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: records = [], isLoading, error } = useQuery({
     queryKey: ['tracker-records', userId],
@@ -45,14 +47,26 @@ export default function TrackerHistoryFromSupabase({ userId }: TrackerHistoryFro
   });
 
   const filteredRecords = useMemo(() => {
-    if (dateFilter === 'all') return records;
-    
-    const days = parseInt(dateFilter);
-    const cutoffDate = subDays(new Date(), days);
-    return records.filter(record => 
-      new Date(record.created_at) >= cutoffDate
-    );
-  }, [records, dateFilter]);
+    let filtered = records;
+
+    // Фильтр по дате
+    if (dateFilter !== 'all') {
+      const days = parseInt(dateFilter);
+      const cutoffDate = subDays(new Date(), days);
+      filtered = filtered.filter(record => 
+        new Date(record.created_at) >= cutoffDate
+      );
+    }
+
+    // Фильтр по заметкам (поиск)
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(record =>
+        record.note?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [records, dateFilter, searchQuery]);
 
   const getBarColor = (value: number) => {
     if (value <= 3) return 'bg-red-500';
@@ -99,19 +113,35 @@ export default function TrackerHistoryFromSupabase({ userId }: TrackerHistoryFro
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label>Период</Label>
-        <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Последние 7 дней</SelectItem>
-            <SelectItem value="30">Последние 30 дней</SelectItem>
-            <SelectItem value="all">Все время</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className="space-y-4 animate-fade-in">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Период</Label>
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Последние 7 дней</SelectItem>
+              <SelectItem value="30">Последние 30 дней</SelectItem>
+              <SelectItem value="90">Последние 90 дней</SelectItem>
+              <SelectItem value="all">Все время</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Поиск по заметкам</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Искать в заметках..."
+              className="pl-9"
+            />
+          </div>
+        </div>
       </div>
 
       {filteredRecords.length === 0 ? (
@@ -120,9 +150,9 @@ export default function TrackerHistoryFromSupabase({ userId }: TrackerHistoryFro
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredRecords.map((record) => (
-            <Collapsible key={record.id}>
-              <Card className="p-4">
+          {filteredRecords.map((record, index) => (
+            <Collapsible key={record.id} className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+              <Card className="p-4 hover:shadow-md transition-shadow">
                 <CollapsibleTrigger className="w-full">
                   <div className="flex items-start gap-3">
                     <div className="shrink-0 mt-1">

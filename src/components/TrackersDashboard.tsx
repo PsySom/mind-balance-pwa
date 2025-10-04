@@ -23,12 +23,13 @@ export default function TrackersDashboard() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Отслеживание состояния</h2>
+    <div className="grid gap-6 lg:grid-cols-2 animate-fade-in">
+      <div className="space-y-4">
+        <h2 className="text-xl md:text-2xl font-semibold">Отслеживание состояния</h2>
         <TrackerForm onSubmitSuccess={handleSubmit} />
       </div>
-      <div>
+      <div className="space-y-4">
+        <h2 className="text-xl md:text-2xl font-semibold">История</h2>
         {userId && (
           <TrackerHistoryFromSupabase userId={userId} />
         )}
