@@ -8,11 +8,3 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </ThemeProvider>
 );
-
-// Global error listeners to surface issues causing white screen
-window.addEventListener('error', (event) => {
-  console.error('Global error:', event.error || event.message);
-});
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
-});

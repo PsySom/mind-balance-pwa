@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -47,14 +47,16 @@ export default function PlannerDashboard() {
     getSession();
   }, []);
 
+  // Мемоизируем строковое представление фильтров для useEffect
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+
   useEffect(() => {
     if (userId && userJwt) {
       fetchActivities();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, userJwt, filters.date, filters.status, filters.category]);
+  }, [userId, userJwt, filtersKey]);
 
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     if (!userId || !userJwt) return;
 
     console.log('📋 Fetching activities with filters:', filters);
@@ -99,7 +101,7 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, userJwt, filters, toast]);
 
   const handleWebhookRequest = async (action: string, data?: any) => {
     console.log(`🚀 Webhook ${action}:`, data);
@@ -134,7 +136,7 @@ export default function PlannerDashboard() {
     }
   };
 
-  const handleCreate = async (activity: ActivityInput) => {
+  const handleCreate = useCallback(async (activity: ActivityInput) => {
     console.log('➕ Creating activity:', activity);
     
     // Валидация
@@ -171,9 +173,9 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleUpdate = async (id: string, activity: ActivityInput) => {
+  const handleUpdate = useCallback(async (id: string, activity: ActivityInput) => {
     console.log('✏️ Updating activity:', { id, ...activity });
     
     // Подготовка данных (форматирование времени)
@@ -196,9 +198,9 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     console.log('🗑️ Deleting activity:', id);
     setIsLoading(true);
     try {
@@ -217,9 +219,9 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleToggleComplete = async (id: string, currentStatus: Activity['status']) => {
+  const handleToggleComplete = useCallback(async (id: string, currentStatus: Activity['status']) => {
     console.log('✅ Toggling completion:', { id, currentStatus });
     setIsLoading(true);
     try {
@@ -246,13 +248,13 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleSelectTemplate = (template: Template) => {
+  const handleSelectTemplate = useCallback((template: Template) => {
     const activityData = templateToActivity(template);
     console.log('📋 Template selected:', activityData);
     setSelectedTemplate(activityData);
-  };
+  }, []);
 
   return (
     <div className="space-y-6">

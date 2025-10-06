@@ -110,15 +110,7 @@ export default function Settings() {
     }
   };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--gradient-soft)' }}>
-        <Card className="p-6 text-center">
-          <p className="text-sm text-muted-foreground">Загрузка настроек...</p>
-        </Card>
-      </div>
-    );
-  }
+  if (!user) return null;
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--gradient-soft)' }}>
