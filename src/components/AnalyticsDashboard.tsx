@@ -9,6 +9,8 @@ import MoodTrendChart from './MoodTrendChart';
 import EmotionsPieChart from './EmotionsPieChart';
 import TrackerTrendChart from './TrackerTrendChart';
 import ActivitiesBarChart from './ActivitiesBarChart';
+import { TrackerAnalyticsChart } from '@/components/analytics/TrackerAnalyticsChart';
+import { CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
 const SUPABASE_URL = 'https://wzgmfdtqxtuzujipoimc.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6Z21mZHRxeHR1enVqaXBvaW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5Nzc5NzIsImV4cCI6MjA3NDU1Mzk3Mn0.6uBF_pdzy8PjSAPOvGwSonmWul8YYHBDwAMHz7Tytb8';
@@ -281,6 +283,20 @@ export default function AnalyticsDashboard() {
               </div>
             </Card>
           </div>
+
+          {(dataTypeFilter === 'all' || dataTypeFilter === 'trackers') && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Динамика показателей</CardTitle>
+                <CardDescription>
+                  Наведите на график, чтобы увидеть распределение показателей за конкретный день
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TrackerAnalyticsChart userId={userId} days={parseInt(periodFilter)} />
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-6 md:grid-cols-2">
             {(dataTypeFilter === 'all' || dataTypeFilter === 'diary') && getMoodTrendData().length > 0 && (
