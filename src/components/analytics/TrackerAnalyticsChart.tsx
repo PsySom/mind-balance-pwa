@@ -138,6 +138,7 @@ export function TrackerAnalyticsChart({ userId, days }: Props) {
           smooth: true,
           seriesLayoutBy: 'row',
           emphasis: { focus: 'series' },
+          lineStyle: { color: '#3b82f6' },
           itemStyle: { color: '#3b82f6' }
         },
         {
@@ -146,6 +147,7 @@ export function TrackerAnalyticsChart({ userId, days }: Props) {
           smooth: true,
           seriesLayoutBy: 'row',
           emphasis: { focus: 'series' },
+          lineStyle: { color: '#ef4444' },
           itemStyle: { color: '#ef4444' }
         },
         {
@@ -154,6 +156,7 @@ export function TrackerAnalyticsChart({ userId, days }: Props) {
           smooth: true,
           seriesLayoutBy: 'row',
           emphasis: { focus: 'series' },
+          lineStyle: { color: '#f59e0b' },
           itemStyle: { color: '#f59e0b' }
         },
         {
@@ -162,6 +165,7 @@ export function TrackerAnalyticsChart({ userId, days }: Props) {
           smooth: true,
           seriesLayoutBy: 'row',
           emphasis: { focus: 'series' },
+          lineStyle: { color: '#10b981' },
           itemStyle: { color: '#10b981' }
         },
         {
@@ -170,6 +174,7 @@ export function TrackerAnalyticsChart({ userId, days }: Props) {
           smooth: true,
           seriesLayoutBy: 'row',
           emphasis: { focus: 'series' },
+          lineStyle: { color: '#8b5cf6' },
           itemStyle: { color: '#8b5cf6' }
         },
         {
