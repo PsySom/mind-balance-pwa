@@ -18,29 +18,14 @@ import {
 import { Edit2, Trash2, Calendar, Clock, Star, MessageSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import type { Activity, ActivityInput } from '@/types/activity';
 import ActivityForm from './ActivityForm';
-
-interface Activity {
-  id: string;
-  title: string;
-  description?: string;
-  category: 'self_care' | 'task' | 'habit' | 'ritual' | 'routine';
-  date: string;
-  time_start?: string;
-  time_end?: string;
-  duration_min?: number;
-  slot_hint?: 'morning' | 'afternoon' | 'evening' | 'any';
-  priority?: number;
-  status: 'planned' | 'completed' | 'cancelled';
-  completion_note?: string;
-  source: 'user' | 'template';
-}
 
 interface ActivityListProps {
   activities: Activity[];
   isLoading: boolean;
   onToggleComplete: (id: string, currentStatus: Activity['status']) => Promise<void>;
-  onUpdate: (id: string, activity: Omit<Activity, 'id'>) => Promise<void>;
+  onUpdate: (id: string, activity: ActivityInput) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 

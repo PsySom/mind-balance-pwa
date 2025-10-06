@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,64 +10,55 @@ import { CalendarIcon, Loader2, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-
-interface Activity {
-  id?: string;
-  title: string;
-  description?: string;
-  category: 'self_care' | 'task' | 'habit' | 'ritual' | 'routine';
-  date: string;
-  time_start?: string;
-  time_end?: string;
-  duration_min?: number;
-  slot_hint?: 'morning' | 'afternoon' | 'evening' | 'any';
-  priority?: number;
-  status: 'planned' | 'completed' | 'cancelled';
-  completion_note?: string;
-  source: 'user' | 'template';
-}
+import type { Activity, ActivityInput } from '@/types/activity';
+import { CATEGORY_LABELS, SLOT_LABELS } from '@/types/activity';
+import { formatTimeForInput } from '@/lib/activityHelpers';
 
 interface ActivityFormProps {
-  activity?: Activity;
+  activity?: Activity | ActivityInput;
   isLoading: boolean;
-  onSubmit: (activity: Omit<Activity, 'id'>) => Promise<void>;
-  trigger?: React.ReactNode;
+  onSubmit: (activity: ActivityInput) => Promise<void>;
+  trigger?: React.ReactNode | null;
 }
-
-const categoryLabels = {
-  self_care: 'Забота о себе',
-  task: 'Задача',
-  habit: 'Привычка',
-  ritual: 'Ритуал',
-  routine: 'Рутина',
-};
-
-const slotLabels = {
-  morning: 'Утро',
-  afternoon: 'День',
-  evening: 'Вечер',
-  any: 'Любое время',
-};
 
 export default function ActivityForm({ activity, isLoading, onSubmit, trigger }: ActivityFormProps) {
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState<Omit<Activity, 'id'>>({
-    title: activity?.title || '',
-    description: activity?.description || '',
-    category: activity?.category || 'task',
-    date: activity?.date || format(new Date(), 'yyyy-MM-dd'),
-    time_start: activity?.time_start || '',
-    time_end: activity?.time_end || '',
-    duration_min: activity?.duration_min || 30,
-    slot_hint: activity?.slot_hint || 'any',
-    priority: activity?.priority || 3,
-    status: activity?.status || 'planned',
-    completion_note: activity?.completion_note || '',
-    source: activity?.source || 'user',
+  const [formData, setFormData] = useState<ActivityInput>({
+    title: '',
+    description: '',
+    category: 'task',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    time_start: '',
+    time_end: '',
+    duration_min: 30,
+    slot_hint: 'any',
+    priority: 3,
+    status: 'planned',
+    completion_note: '',
+    source: 'user',
   });
-  const [selectedDate, setSelectedDate] = useState<Date>(
-    activity?.date ? new Date(activity.date) : new Date()
-  );
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  // Обновление формы при изменении activity (для редактирования)
+  useEffect(() => {
+    if (activity) {
+      setFormData({
+        title: activity.title || '',
+        description: activity.description || '',
+        category: activity.category || 'task',
+        date: activity.date || format(new Date(), 'yyyy-MM-dd'),
+        time_start: formatTimeForInput(activity.time_start),
+        time_end: formatTimeForInput(activity.time_end),
+        duration_min: activity.duration_min || 30,
+        slot_hint: activity.slot_hint || 'any',
+        priority: activity.priority || 3,
+        status: activity.status || 'planned',
+        completion_note: activity.completion_note || '',
+        source: activity.source || 'user',
+      });
+      setSelectedDate(activity.date ? new Date(activity.date) : new Date());
+    }
+  }, [activity]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
@@ -151,7 +142,7 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(categoryLabels).map(([value, label]) => (
+                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
@@ -203,8 +194,7 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
               <Input
                 id="time_start"
                 type="time"
-                step="1"
-                value={formData.time_start ? formData.time_start.slice(0, 5) : ''}
+                value={formData.time_start}
                 onChange={(e) => setFormData(prev => ({ ...prev, time_start: e.target.value }))}
               />
             </div>
@@ -213,8 +203,7 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
               <Input
                 id="time_end"
                 type="time"
-                step="1"
-                value={formData.time_end ? formData.time_end.slice(0, 5) : ''}
+                value={formData.time_end}
                 onChange={(e) => setFormData(prev => ({ ...prev, time_end: e.target.value }))}
               />
             </div>
@@ -261,7 +250,7 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(slotLabels).map(([value, label]) => (
+                {Object.entries(SLOT_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,25 +10,16 @@ import { List, Lightbulb, CalendarIcon, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import type { Activity, ActivityInput, ActivityFilters, Template } from '@/types/activity';
+import { 
+  prepareActivityForSubmit, 
+  validateActivity, 
+  templateToActivity,
+  buildFilterParams 
+} from '@/lib/activityHelpers';
 import ActivityForm from './ActivityForm';
 import ActivityList from './ActivityList';
 import TemplateList from './TemplateList';
-
-interface Activity {
-  id: string;
-  title: string;
-  description?: string;
-  category: 'self_care' | 'task' | 'habit' | 'ritual' | 'routine';
-  date: string;
-  time_start?: string;
-  time_end?: string;
-  duration_min?: number;
-  slot_hint?: 'morning' | 'afternoon' | 'evening' | 'any';
-  priority?: number;
-  status: 'planned' | 'completed' | 'cancelled';
-  completion_note?: string;
-  source: 'user' | 'template';
-}
 
 const WEBHOOK_URL = 'https://mentalbalans.com/webhook/planner-sync';
 
@@ -37,11 +28,11 @@ export default function PlannerDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [userJwt, setUserJwt] = useState<string>('');
-  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
-  const [filters, setFilters] = useState({
+  const [selectedTemplate, setSelectedTemplate] = useState<ActivityInput | null>(null);
+  const [filters, setFilters] = useState<ActivityFilters>({
     date: '',
-    status: 'all' as 'all' | 'planned' | 'completed' | 'cancelled',
-    category: 'all' as 'all' | Activity['category'],
+    status: 'all',
+    category: 'all',
   });
   const { toast } = useToast();
 
@@ -56,32 +47,22 @@ export default function PlannerDashboard() {
     getSession();
   }, []);
 
+  // Мемоизируем строковое представление фильтров для useEffect
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+
   useEffect(() => {
     if (userId && userJwt) {
       fetchActivities();
     }
-  }, [userId, userJwt, filters]);
+  }, [userId, userJwt, filtersKey]);
 
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     if (!userId || !userJwt) return;
 
     console.log('📋 Fetching activities with filters:', filters);
     setIsLoading(true);
     try {
-      const filterParams: any = {
-        date_from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        limit: 100,
-      };
-
-      if (filters.date) {
-        filterParams.date = filters.date;
-      }
-      if (filters.status !== 'all') {
-        filterParams.status = filters.status;
-      }
-      if (filters.category !== 'all') {
-        filterParams.category = filters.category;
-      }
+      const filterParams = buildFilterParams(filters);
 
       console.log('🌐 Webhook request:', {
         action: 'list',
@@ -120,7 +101,7 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, userJwt, filters, toast]);
 
   const handleWebhookRequest = async (action: string, data?: any) => {
     console.log(`🚀 Webhook ${action}:`, data);
@@ -155,50 +136,28 @@ export default function PlannerDashboard() {
     }
   };
 
-  const handleCreate = async (activity: Omit<Activity, 'id'>) => {
+  const handleCreate = useCallback(async (activity: ActivityInput) => {
     console.log('➕ Creating activity:', activity);
     
     // Валидация
-    if (!activity.title?.trim()) {
-      console.warn('⚠️ Validation failed: title is empty');
+    const validationError = validateActivity(activity);
+    if (validationError) {
+      console.warn('⚠️ Validation failed:', validationError);
       toast({
-        title: 'Ошибка валидации',
-        description: 'Название обязательно',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (!activity.date) {
-      console.warn('⚠️ Validation failed: date is empty');
-      toast({
-        title: 'Ошибка валидации',
-        description: 'Дата обязательна',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (activity.duration_min && activity.duration_min <= 0) {
-      console.warn('⚠️ Validation failed: duration <= 0');
-      toast({
-        title: 'Ошибка валидации',
-        description: 'Длительность должна быть больше 0',
+        title: validationError.title,
+        description: validationError.description,
         variant: 'destructive',
       });
       return;
     }
 
-    // Форматирование времени HH:MM:SS
-    const formattedActivity = {
-      ...activity,
-      time_start: activity.time_start ? `${activity.time_start}:00` : undefined,
-      time_end: activity.time_end ? `${activity.time_end}:00` : undefined,
-    };
-
-    console.log('📝 Formatted activity:', formattedActivity);
+    // Подготовка данных (форматирование времени)
+    const preparedActivity = prepareActivityForSubmit(activity);
+    console.log('📝 Prepared activity:', preparedActivity);
 
     setIsLoading(true);
     try {
-      await handleWebhookRequest('create', formattedActivity);
+      await handleWebhookRequest('create', preparedActivity);
       toast({
         title: 'Активность создана',
         description: 'Новая активность успешно добавлена',
@@ -214,21 +173,17 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleUpdate = async (id: string, activity: Omit<Activity, 'id'>) => {
+  const handleUpdate = useCallback(async (id: string, activity: ActivityInput) => {
     console.log('✏️ Updating activity:', { id, ...activity });
     
-    // Форматирование времени HH:MM:SS
-    const formattedActivity = {
-      ...activity,
-      time_start: activity.time_start ? `${activity.time_start}:00` : undefined,
-      time_end: activity.time_end ? `${activity.time_end}:00` : undefined,
-    };
+    // Подготовка данных (форматирование времени)
+    const preparedActivity = prepareActivityForSubmit(activity);
 
     setIsLoading(true);
     try {
-      await handleWebhookRequest('update', { id, ...formattedActivity });
+      await handleWebhookRequest('update', { id, ...preparedActivity });
       toast({
         title: 'Активность обновлена',
         description: 'Изменения успешно сохранены',
@@ -243,9 +198,9 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     console.log('🗑️ Deleting activity:', id);
     setIsLoading(true);
     try {
@@ -264,9 +219,9 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleToggleComplete = async (id: string, currentStatus: Activity['status']) => {
+  const handleToggleComplete = useCallback(async (id: string, currentStatus: Activity['status']) => {
     console.log('✅ Toggling completion:', { id, currentStatus });
     setIsLoading(true);
     try {
@@ -293,21 +248,13 @@ export default function PlannerDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleSelectTemplate = (template: any) => {
-    setSelectedTemplate({
-      title: template.title.ru,
-      description: template.description?.ru || '',
-      category: template.category,
-      date: new Date().toISOString().split('T')[0],
-      duration_min: template.duration_min,
-      slot_hint: 'any' as const,
-      priority: 3,
-      status: 'planned' as const,
-      source: 'template' as const,
-    });
-  };
+  const handleSelectTemplate = useCallback((template: Template) => {
+    const activityData = templateToActivity(template);
+    console.log('📋 Template selected:', activityData);
+    setSelectedTemplate(activityData);
+  }, []);
 
   return (
     <div className="space-y-6">

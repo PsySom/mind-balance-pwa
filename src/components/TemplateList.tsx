@@ -7,28 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Clock, Star, Search, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface Template {
-  id: string;
-  title: { ru: string };
-  description: { ru: string };
-  category: 'self_care' | 'task' | 'habit' | 'ritual' | 'routine';
-  duration_min: number;
-  difficulty_level: number;
-  is_active: boolean;
-}
+import type { Template } from '@/types/activity';
+import { CATEGORY_LABELS } from '@/types/activity';
 
 interface TemplateListProps {
   onSelectTemplate: (template: Template) => void;
 }
-
-const categoryLabels = {
-  self_care: { label: 'Забота о себе', color: 'bg-green-500' },
-  task: { label: 'Задача', color: 'bg-blue-500' },
-  habit: { label: 'Привычка', color: 'bg-purple-500' },
-  ritual: { label: 'Ритуал', color: 'bg-orange-500' },
-  routine: { label: 'Рутина', color: 'bg-pink-500' },
-};
 
 export default function TemplateList({ onSelectTemplate }: TemplateListProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -139,7 +123,7 @@ export default function TemplateList({ onSelectTemplate }: TemplateListProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все категории</SelectItem>
-            {Object.entries(categoryLabels).map(([value, { label }]) => (
+            {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
@@ -188,10 +172,14 @@ export default function TemplateList({ onSelectTemplate }: TemplateListProps) {
                 >
                   <div
                     className={`w-2 h-2 rounded-full ${
-                      categoryLabels[template.category].color
+                      template.category === 'self_care' ? 'bg-green-500' :
+                      template.category === 'task' ? 'bg-blue-500' :
+                      template.category === 'habit' ? 'bg-purple-500' :
+                      template.category === 'ritual' ? 'bg-orange-500' :
+                      'bg-pink-500'
                     } mr-1`}
                   />
-                  {categoryLabels[template.category].label}
+                  {CATEGORY_LABELS[template.category]}
                 </Badge>
 
                 <Badge variant="outline" className="text-xs gap-1">
