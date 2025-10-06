@@ -78,8 +78,21 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Валидация
+    if (!formData.title?.trim()) {
+      return; // HTML required сработает
+    }
+    if (!formData.date) {
+      return; // HTML required сработает
+    }
+    if (formData.duration_min && formData.duration_min <= 0) {
+      return; // HTML min сработает
+    }
+
     await onSubmit(formData);
     setOpen(false);
+    
     // Сброс формы только если это создание новой активности
     if (!activity) {
       setFormData({
