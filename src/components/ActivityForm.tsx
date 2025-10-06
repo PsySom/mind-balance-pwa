@@ -203,7 +203,8 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
               <Input
                 id="time_start"
                 type="time"
-                value={formData.time_start}
+                step="1"
+                value={formData.time_start ? formData.time_start.slice(0, 5) : ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, time_start: e.target.value }))}
               />
             </div>
@@ -212,7 +213,8 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
               <Input
                 id="time_end"
                 type="time"
-                value={formData.time_end}
+                step="1"
+                value={formData.time_end ? formData.time_end.slice(0, 5) : ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, time_end: e.target.value }))}
               />
             </div>

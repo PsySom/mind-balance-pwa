@@ -65,6 +65,7 @@ export default function PlannerDashboard() {
   const fetchActivities = async () => {
     if (!userId || !userJwt) return;
 
+    console.log('📋 Fetching activities with filters:', filters);
     setIsLoading(true);
     try {
       const filterParams: any = {
@@ -82,6 +83,12 @@ export default function PlannerDashboard() {
         filterParams.category = filters.category;
       }
 
+      console.log('🌐 Webhook request:', {
+        action: 'list',
+        filters: filterParams,
+        user_id: userId
+      });
+
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {
@@ -96,13 +103,15 @@ export default function PlannerDashboard() {
       });
 
       if (!response.ok) {
+        console.error('❌ Response not OK:', response.status, response.statusText);
         throw new Error('Ошибка при загрузке активностей');
       }
 
       const data = await response.json();
+      console.log('✅ Activities loaded:', data);
       setActivities(data.activities || []);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error('❌ Error fetching activities:', error);
       toast({
         title: 'Ошибка',
         description: 'Не удалось загрузить активности',
@@ -114,6 +123,7 @@ export default function PlannerDashboard() {
   };
 
   const handleWebhookRequest = async (action: string, data?: any) => {
+    console.log(`🚀 Webhook ${action}:`, data);
     try {
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
@@ -129,20 +139,28 @@ export default function PlannerDashboard() {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Webhook error response:', response.status, errorText);
         throw new Error('Ошибка при выполнении операции');
       }
+
+      const result = await response.json();
+      console.log('✅ Webhook success:', result);
 
       await fetchActivities();
       return true;
     } catch (error) {
-      console.error('Webhook error:', error);
+      console.error('❌ Webhook error:', error);
       throw error;
     }
   };
 
   const handleCreate = async (activity: Omit<Activity, 'id'>) => {
+    console.log('➕ Creating activity:', activity);
+    
     // Валидация
     if (!activity.title?.trim()) {
+      console.warn('⚠️ Validation failed: title is empty');
       toast({
         title: 'Ошибка валидации',
         description: 'Название обязательно',
@@ -151,6 +169,7 @@ export default function PlannerDashboard() {
       return;
     }
     if (!activity.date) {
+      console.warn('⚠️ Validation failed: date is empty');
       toast({
         title: 'Ошибка валидации',
         description: 'Дата обязательна',
@@ -159,6 +178,7 @@ export default function PlannerDashboard() {
       return;
     }
     if (activity.duration_min && activity.duration_min <= 0) {
+      console.warn('⚠️ Validation failed: duration <= 0');
       toast({
         title: 'Ошибка валидации',
         description: 'Длительность должна быть больше 0',
@@ -167,15 +187,25 @@ export default function PlannerDashboard() {
       return;
     }
 
+    // Форматирование времени HH:MM:SS
+    const formattedActivity = {
+      ...activity,
+      time_start: activity.time_start ? `${activity.time_start}:00` : undefined,
+      time_end: activity.time_end ? `${activity.time_end}:00` : undefined,
+    };
+
+    console.log('📝 Formatted activity:', formattedActivity);
+
     setIsLoading(true);
     try {
-      await handleWebhookRequest('create', activity);
+      await handleWebhookRequest('create', formattedActivity);
       toast({
         title: 'Активность создана',
         description: 'Новая активность успешно добавлена',
       });
       setSelectedTemplate(null);
     } catch (error) {
+      console.error('❌ Create error:', error);
       toast({
         title: 'Ошибка',
         description: 'Не удалось создать активность',
@@ -187,14 +217,24 @@ export default function PlannerDashboard() {
   };
 
   const handleUpdate = async (id: string, activity: Omit<Activity, 'id'>) => {
+    console.log('✏️ Updating activity:', { id, ...activity });
+    
+    // Форматирование времени HH:MM:SS
+    const formattedActivity = {
+      ...activity,
+      time_start: activity.time_start ? `${activity.time_start}:00` : undefined,
+      time_end: activity.time_end ? `${activity.time_end}:00` : undefined,
+    };
+
     setIsLoading(true);
     try {
-      await handleWebhookRequest('update', { id, ...activity });
+      await handleWebhookRequest('update', { id, ...formattedActivity });
       toast({
         title: 'Активность обновлена',
         description: 'Изменения успешно сохранены',
       });
     } catch (error) {
+      console.error('❌ Update error:', error);
       toast({
         title: 'Ошибка',
         description: 'Не удалось обновить активность',
@@ -206,6 +246,7 @@ export default function PlannerDashboard() {
   };
 
   const handleDelete = async (id: string) => {
+    console.log('🗑️ Deleting activity:', id);
     setIsLoading(true);
     try {
       await handleWebhookRequest('delete', { id });
@@ -214,6 +255,7 @@ export default function PlannerDashboard() {
         description: 'Активность успешно удалена',
       });
     } catch (error) {
+      console.error('❌ Delete error:', error);
       toast({
         title: 'Ошибка',
         description: 'Не удалось удалить активность',
@@ -225,6 +267,7 @@ export default function PlannerDashboard() {
   };
 
   const handleToggleComplete = async (id: string, currentStatus: Activity['status']) => {
+    console.log('✅ Toggling completion:', { id, currentStatus });
     setIsLoading(true);
     try {
       const newStatus = currentStatus === 'completed' ? 'planned' : 'completed';
@@ -241,6 +284,7 @@ export default function PlannerDashboard() {
         description: newStatus === 'completed' ? 'Активность отмечена как выполненная' : 'Статус изменен на запланирован',
       });
     } catch (error) {
+      console.error('❌ Toggle error:', error);
       toast({
         title: 'Ошибка',
         description: 'Не удалось изменить статус',
