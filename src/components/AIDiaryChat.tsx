@@ -44,6 +44,44 @@ export default function AIDiaryChat() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
+  // Загрузка истории переписки из localStorage при монтировании
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('ai-diary-messages');
+    const savedSessionId = localStorage.getItem('ai-diary-session-id');
+    
+    if (savedMessages) {
+      try {
+        const parsed = JSON.parse(savedMessages);
+        // Восстановить объекты Date
+        const messagesWithDates = parsed.map((msg: Message) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(messagesWithDates);
+      } catch (error) {
+        console.error('Error loading messages:', error);
+      }
+    }
+    
+    if (savedSessionId) {
+      setSessionId(savedSessionId);
+    }
+  }, []);
+
+  // Сохранение истории переписки в localStorage
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('ai-diary-messages', JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  // Сохранение session_id в localStorage
+  useEffect(() => {
+    if (sessionId) {
+      localStorage.setItem('ai-diary-session-id', sessionId);
+    }
+  }, [sessionId]);
+
   // Автофокус на поле ввода при монтировании
   useEffect(() => {
     textareaRef.current?.focus();
