@@ -374,7 +374,7 @@ export default function PlannerDashboard() {
           </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
             <Lightbulb className="w-4 h-4" />
-            Рекомендации
+            Шаблоны
           </TabsTrigger>
         </TabsList>
 
