@@ -10,16 +10,20 @@ import TemplateList from './TemplateList';
 interface Activity {
   id: string;
   title: string;
-  category: 'self_care' | 'task' | 'habit' | 'ritual';
+  description?: string;
+  category: 'self_care' | 'task' | 'habit' | 'ritual' | 'routine';
   date: string;
-  start_time?: string;
-  end_time?: string;
-  duration_minutes: number;
+  time_start?: string;
+  time_end?: string;
+  duration_min?: number;
+  slot_hint?: 'morning' | 'afternoon' | 'evening' | 'any';
+  priority?: number;
   status: 'planned' | 'completed' | 'cancelled';
+  completion_note?: string;
+  source: 'user' | 'template';
 }
 
-const SUPABASE_URL = 'https://wzgmfdtqxtuzujipoimc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6Z21mZHRxeHR1enVqaXBvaW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5Nzc5NzIsImV4cCI6MjA3NDU1Mzk3Mn0.6uBF_pdzy8PjSAPOvGwSonmWul8YYHBDwAMHz7Tytb8';
+const WEBHOOK_URL = 'https://mentalbalans.com/webhook/planner-sync';
 
 export default function PlannerDashboard() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -49,31 +53,44 @@ export default function PlannerDashboard() {
   const fetchActivities = async () => {
     if (!userId || !userJwt) return;
 
+    setIsLoading(true);
     try {
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/activities?user_id=eq.${userId}&order=date.desc`,
-        {
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${userJwt}`,
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userJwt,
+          user_id: userId,
+          action: 'list',
+          filters: {
+            date_from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           },
-        }
-      );
+        }),
+      });
 
       if (!response.ok) {
         throw new Error('Ошибка при загрузке активностей');
       }
 
       const data = await response.json();
-      setActivities(data);
+      setActivities(data.activities || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось загрузить активности',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleWebhookRequest = async (action: string, payload: any) => {
+  const handleWebhookRequest = async (action: string, data?: any) => {
     try {
-      const response = await fetch('https://mentalbalans.com/webhook/planner-sync', {
+      const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,7 +99,7 @@ export default function PlannerDashboard() {
           userJwt,
           user_id: userId,
           action,
-          ...payload,
+          data,
         }),
       });
 
@@ -98,12 +115,10 @@ export default function PlannerDashboard() {
     }
   };
 
-  const handleCreate = async (activity: Omit<Activity, 'id'>, source?: string) => {
+  const handleCreate = async (activity: Omit<Activity, 'id'>) => {
     setIsLoading(true);
     try {
-      await handleWebhookRequest('create', { 
-        activity: { ...activity, source: source || 'manual' }
-      });
+      await handleWebhookRequest('create', activity);
       toast({
         title: 'Активность создана',
         description: 'Новая активность успешно добавлена',
@@ -123,7 +138,7 @@ export default function PlannerDashboard() {
   const handleUpdate = async (id: string, activity: Omit<Activity, 'id'>) => {
     setIsLoading(true);
     try {
-      await handleWebhookRequest('update', { update: { id, data: activity } });
+      await handleWebhookRequest('update', { id, ...activity });
       toast({
         title: 'Активность обновлена',
         description: 'Изменения успешно сохранены',
@@ -142,7 +157,7 @@ export default function PlannerDashboard() {
   const handleDelete = async (id: string) => {
     setIsLoading(true);
     try {
-      await handleWebhookRequest('delete', { delete: { id } });
+      await handleWebhookRequest('delete', { id });
       toast({
         title: 'Активность удалена',
         description: 'Активность успешно удалена',
@@ -159,23 +174,36 @@ export default function PlannerDashboard() {
   };
 
   const handleToggleComplete = async (id: string, currentStatus: Activity['status']) => {
-    const newStatus = currentStatus === 'completed' ? 'planned' : 'completed';
-    const activity = activities.find(a => a.id === id);
-    if (!activity) return;
-
-    await handleUpdate(id, { ...activity, status: newStatus });
+    setIsLoading(true);
+    try {
+      const newStatus = currentStatus === 'completed' ? 'planned' : 'completed';
+      await handleWebhookRequest('complete', { id, status: newStatus });
+      toast({
+        title: newStatus === 'completed' ? 'Выполнено' : 'Отменена отметка',
+        description: newStatus === 'completed' ? 'Активность отмечена как выполненная' : 'Статус изменен на запланирован',
+      });
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось изменить статус',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSelectTemplate = (template: any) => {
     setSelectedTemplate({
       title: template.title.ru,
+      description: template.description?.ru || '',
       category: template.category,
       date: new Date().toISOString().split('T')[0],
-      duration_minutes: template.duration_min,
+      duration_min: template.duration_min,
+      slot_hint: 'any' as const,
+      priority: 3,
       status: 'planned' as const,
-      start_time: '',
-      end_time: '',
-      note: template.description?.ru || '',
+      source: 'template' as const,
     });
   };
 
@@ -186,12 +214,12 @@ export default function PlannerDashboard() {
         {selectedTemplate ? (
           <ActivityForm
             isLoading={isLoading}
-            onSubmit={(data) => handleCreate(data, 'template')}
+            onSubmit={handleCreate}
             activity={selectedTemplate}
             trigger={null}
           />
         ) : (
-          <ActivityForm isLoading={isLoading} onSubmit={(data) => handleCreate(data)} />
+          <ActivityForm isLoading={isLoading} onSubmit={handleCreate} />
         )}
       </div>
 

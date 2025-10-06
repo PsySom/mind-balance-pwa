@@ -14,12 +14,17 @@ import { cn } from '@/lib/utils';
 interface Activity {
   id?: string;
   title: string;
-  category: 'self_care' | 'task' | 'habit' | 'ritual';
+  description?: string;
+  category: 'self_care' | 'task' | 'habit' | 'ritual' | 'routine';
   date: string;
-  start_time?: string;
-  end_time?: string;
-  duration_minutes: number;
+  time_start?: string;
+  time_end?: string;
+  duration_min?: number;
+  slot_hint?: 'morning' | 'afternoon' | 'evening' | 'any';
+  priority?: number;
   status: 'planned' | 'completed' | 'cancelled';
+  completion_note?: string;
+  source: 'user' | 'template';
 }
 
 interface ActivityFormProps {
@@ -34,18 +39,31 @@ const categoryLabels = {
   task: 'Задача',
   habit: 'Привычка',
   ritual: 'Ритуал',
+  routine: 'Рутина',
+};
+
+const slotLabels = {
+  morning: 'Утро',
+  afternoon: 'День',
+  evening: 'Вечер',
+  any: 'Любое время',
 };
 
 export default function ActivityForm({ activity, isLoading, onSubmit, trigger }: ActivityFormProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<Activity, 'id'>>({
     title: activity?.title || '',
+    description: activity?.description || '',
     category: activity?.category || 'task',
     date: activity?.date || format(new Date(), 'yyyy-MM-dd'),
-    start_time: activity?.start_time || '',
-    end_time: activity?.end_time || '',
-    duration_minutes: activity?.duration_minutes || 30,
+    time_start: activity?.time_start || '',
+    time_end: activity?.time_end || '',
+    duration_min: activity?.duration_min || 30,
+    slot_hint: activity?.slot_hint || 'any',
+    priority: activity?.priority || 3,
     status: activity?.status || 'planned',
+    completion_note: activity?.completion_note || '',
+    source: activity?.source || 'user',
   });
   const [selectedDate, setSelectedDate] = useState<Date>(
     activity?.date ? new Date(activity.date) : new Date()
@@ -66,12 +84,17 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
     if (!activity) {
       setFormData({
         title: '',
+        description: '',
         category: 'task',
         date: format(new Date(), 'yyyy-MM-dd'),
-        start_time: '',
-        end_time: '',
-        duration_minutes: 30,
+        time_start: '',
+        time_end: '',
+        duration_min: 30,
+        slot_hint: 'any',
+        priority: 3,
         status: 'planned',
+        completion_note: '',
+        source: 'user',
       });
       setSelectedDate(new Date());
     }
@@ -151,39 +174,85 @@ export default function ActivityForm({ activity, isLoading, onSubmit, trigger }:
             </Popover>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="description">Описание</Label>
+            <Input
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Дополнительная информация"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start_time">Время начала</Label>
+              <Label htmlFor="time_start">Время начала</Label>
               <Input
-                id="start_time"
+                id="time_start"
                 type="time"
-                value={formData.start_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+                value={formData.time_start}
+                onChange={(e) => setFormData(prev => ({ ...prev, time_start: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end_time">Время конца</Label>
+              <Label htmlFor="time_end">Время конца</Label>
               <Input
-                id="end_time"
+                id="time_end"
                 type="time"
-                value={formData.end_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
+                value={formData.time_end}
+                onChange={(e) => setFormData(prev => ({ ...prev, time_end: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="duration">Длительность (мин)</Label>
+              <Input
+                id="duration"
+                type="number"
+                min="1"
+                value={formData.duration_min}
+                onChange={(e) =>
+                  setFormData(prev => ({ ...prev, duration_min: parseInt(e.target.value) || 0 }))
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="priority">Приоритет (1-5)</Label>
+              <Input
+                id="priority"
+                type="number"
+                min="1"
+                max="5"
+                value={formData.priority}
+                onChange={(e) =>
+                  setFormData(prev => ({ ...prev, priority: parseInt(e.target.value) || 3 }))
+                }
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="duration">Длительность (минуты)</Label>
-            <Input
-              id="duration"
-              type="number"
-              min="1"
-              value={formData.duration_minutes}
-              onChange={(e) =>
-                setFormData(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) || 0 }))
+            <Label htmlFor="slot_hint">Время дня</Label>
+            <Select
+              value={formData.slot_hint}
+              onValueChange={(value: Activity['slot_hint']) =>
+                setFormData(prev => ({ ...prev, slot_hint: value }))
               }
-              required
-            />
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(slotLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

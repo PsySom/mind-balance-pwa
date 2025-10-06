@@ -10,12 +10,17 @@ import ActivityForm from './ActivityForm';
 interface Activity {
   id: string;
   title: string;
-  category: 'self_care' | 'task' | 'habit' | 'ritual';
+  description?: string;
+  category: 'self_care' | 'task' | 'habit' | 'ritual' | 'routine';
   date: string;
-  start_time?: string;
-  end_time?: string;
-  duration_minutes: number;
+  time_start?: string;
+  time_end?: string;
+  duration_min?: number;
+  slot_hint?: 'morning' | 'afternoon' | 'evening' | 'any';
+  priority?: number;
   status: 'planned' | 'completed' | 'cancelled';
+  completion_note?: string;
+  source: 'user' | 'template';
 }
 
 interface ActivityListProps {
@@ -31,6 +36,7 @@ const categoryConfig = {
   task: { label: 'Задача', color: 'bg-blue-500' },
   habit: { label: 'Привычка', color: 'bg-purple-500' },
   ritual: { label: 'Ритуал', color: 'bg-orange-500' },
+  routine: { label: 'Рутина', color: 'bg-pink-500' },
 };
 
 const statusConfig = {
@@ -137,13 +143,18 @@ export default function ActivityList({
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      {activity.start_time && activity.end_time && (
+                      {activity.time_start && activity.time_end && (
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {activity.start_time} - {activity.end_time}
+                          {activity.time_start} - {activity.time_end}
                         </span>
                       )}
-                      <span>{activity.duration_minutes} мин</span>
+                      {activity.duration_min && <span>{activity.duration_min} мин</span>}
+                      {activity.priority && activity.priority > 3 && (
+                        <Badge variant="destructive" className="text-xs">
+                          Высокий приоритет
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
