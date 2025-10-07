@@ -86,7 +86,22 @@ export default function PlannerDashboard() {
         throw new Error('Ошибка при загрузке активностей');
       }
 
-      const data = await response.json();
+      // Проверка на пустой ответ
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        console.warn('⚠️ Empty response from webhook');
+        setActivities([]);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError, 'Response text:', text);
+        throw new Error('Некорректный ответ сервера');
+      }
+
       console.log('✅ Activities loaded:', data);
       setActivities(data.activities || []);
     } catch (error) {
@@ -123,7 +138,21 @@ export default function PlannerDashboard() {
         throw new Error('Ошибка при выполнении операции');
       }
 
-      const result = await response.json();
+      // Проверка на пустой ответ
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        console.warn('⚠️ Empty response from webhook');
+        return true;
+      }
+
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError, 'Response text:', text);
+        throw new Error('Некорректный ответ сервера');
+      }
+
       console.log('✅ Webhook success:', result);
 
       await fetchActivities();
