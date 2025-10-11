@@ -199,7 +199,14 @@ export function useAIDiaryChat() {
         // Показываем индикатор "AI печатает..."
         setIsTyping(true);
         
-        // FALLBACK: если через 30 секунд нет ответа через Realtime, добавляем вручную
+        // FALLBACK: если через N секунд нет ответа через Realtime, добавляем вручную
+        const isMock = Boolean(
+          response?.data?.is_mock ||
+          response?.data?.session_id?.startsWith?.('mock_session_') ||
+          response?.data?.saved_entry_id?.startsWith?.('mock_')
+        );
+        const timeoutMs = isMock ? 1200 : 30000;
+        
         const fallbackTimeout = setTimeout(() => {
           if (response.data.ai_response) {
             const aiMessage: ChatMessage = {
@@ -221,7 +228,7 @@ export function useAIDiaryChat() {
             
             setIsTyping(false);
           }
-        }, 30000);
+        }, timeoutMs);
         
         // Сохраняем таймер для очистки
         (window as any).__fallbackTimer = fallbackTimeout;
@@ -265,6 +272,8 @@ export function useAIDiaryChat() {
     // Создаем новую сессию
     const newSession = await aiDiarySessionsService.createSession(user.id);
     setSessionId(newSession.session_id);
+    // Сразу подписываемся на Realtime для новой сессии
+    subscribeToSession(newSession.session_id);
     
     // Очищаем сообщения и показываем приветствие
     setMessages([{

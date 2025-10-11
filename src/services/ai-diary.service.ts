@@ -104,7 +104,8 @@ class AIDiaryService {
           },
           saved_entry_id: `mock_entry_${Date.now()}`,
           locale: locale,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          is_mock: true
         }
       };
     }
