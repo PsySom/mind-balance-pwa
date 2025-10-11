@@ -87,6 +87,8 @@ export function useActivities() {
     }
 
     const preparedActivity = prepareActivityForSubmit(activity);
+    
+    console.log('Creating activity with data:', { ...preparedActivity, user_id: userId });
 
     setIsLoading(true);
     try {
@@ -97,7 +99,10 @@ export function useActivities() {
           user_id: userId,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating activity:', error);
+        throw error;
+      }
 
       toast({
         title: 'Активность создана',
