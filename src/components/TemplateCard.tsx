@@ -10,12 +10,16 @@ interface TemplateCardProps {
   onSchedule: (template: Template) => void;
 }
 
-const categoryConfig = {
+const categoryConfig: Record<string, { label: string; color: string }> = {
   self_care: { label: 'Забота о себе', color: 'bg-green-500' },
   task: { label: 'Задача', color: 'bg-blue-500' },
   habit: { label: 'Привычка', color: 'bg-purple-500' },
   ritual: { label: 'Ритуал', color: 'bg-orange-500' },
   routine: { label: 'Рутина', color: 'bg-pink-500' },
+  exercise: { label: 'Упражнение', color: 'bg-red-500' },
+  social: { label: 'Социальное', color: 'bg-cyan-500' },
+  creative: { label: 'Творчество', color: 'bg-yellow-500' },
+  rest: { label: 'Отдых', color: 'bg-indigo-500' },
 };
 
 export default function TemplateCard({ template, onPlay, onSchedule }: TemplateCardProps) {
@@ -30,6 +34,8 @@ export default function TemplateCard({ template, onPlay, onSchedule }: TemplateC
     ));
   };
 
+  const categoryInfo = categoryConfig[template.category] || { label: template.category, color: 'bg-gray-500' };
+
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
       <div className="space-y-3">
@@ -37,8 +43,8 @@ export default function TemplateCard({ template, onPlay, onSchedule }: TemplateC
           <div className="flex items-start justify-between gap-2">
             <h4 className="font-semibold text-sm">{template.title.ru}</h4>
             <Badge variant="secondary" className="text-xs shrink-0">
-              <div className={`w-2 h-2 rounded-full ${categoryConfig[template.category].color} mr-1`} />
-              {categoryConfig[template.category].label}
+              <div className={`w-2 h-2 rounded-full ${categoryInfo.color} mr-1`} />
+              {categoryInfo.label}
             </Badge>
           </div>
           
