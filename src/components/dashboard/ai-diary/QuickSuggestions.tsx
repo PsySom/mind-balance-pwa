@@ -1,38 +1,26 @@
 import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
 
 interface QuickSuggestionsProps {
   suggestions: string[];
-  onSelectSuggestion: (suggestion: string) => void;
-  disabled?: boolean;
+  onClick: (suggestion: string) => void;
 }
 
-export default function QuickSuggestions({
-  suggestions,
-  onSelectSuggestion,
-  disabled = false
-}: QuickSuggestionsProps) {
-  if (suggestions.length === 0) return null;
-
+export default function QuickSuggestions({ suggestions, onClick }: QuickSuggestionsProps) {
+  if (!suggestions || suggestions.length === 0) return null;
+  
   return (
-    <div className="border-t p-4 bg-muted/30">
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium">Варианты продолжения:</span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {suggestions.map((suggestion, index) => (
-          <Button
-            key={index}
-            variant="outline"
-            className="justify-start text-left h-auto py-3 px-4 whitespace-normal"
-            onClick={() => onSelectSuggestion(suggestion)}
-            disabled={disabled}
-          >
-            <span className="text-sm">{suggestion}</span>
-          </Button>
-        ))}
-      </div>
+    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 animate-fade-in">
+      {suggestions.map((suggestion, index) => (
+        <Button
+          key={index}
+          variant="outline"
+          size="sm"
+          onClick={() => onClick(suggestion)}
+          className="text-left justify-start h-auto py-2 px-3 whitespace-normal transition-all hover:scale-105"
+        >
+          {suggestion}
+        </Button>
+      ))}
     </div>
   );
 }

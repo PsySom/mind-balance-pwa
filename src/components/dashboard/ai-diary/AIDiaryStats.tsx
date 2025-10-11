@@ -1,90 +1,64 @@
-import { Card } from '@/components/ui/card';
 import { useAIDiaryAnalytics } from '@/hooks/useAIDiaryAnalytics';
-import { MessageCircle, Clock, TrendingUp, Calendar } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
+import { BarChart3, MessageSquare, Clock } from 'lucide-react';
 
-export default function AIDiaryStats() {
+interface AIDiaryStatsProps {
+  sessionId: string | null;
+}
+
+export default function AIDiaryStats({ sessionId }: AIDiaryStatsProps) {
   const { stats, isLoading } = useAIDiaryAnalytics();
-
-  if (isLoading) {
-    return (
-      <Card className="p-6">
-        <Skeleton className="h-6 w-32 mb-4" />
-        <div className="grid grid-cols-2 gap-4">
-          <Skeleton className="h-20" />
-          <Skeleton className="h-20" />
-          <Skeleton className="h-20" />
-          <Skeleton className="h-20" />
-        </div>
-      </Card>
-    );
+  
+  if (isLoading || !stats) {
+    return null;
   }
-
-  if (!stats) {
-    return (
-      <Card className="p-6">
-        <p className="text-muted-foreground text-center">
-          Статистика пока недоступна. Начните вести дневник!
-        </p>
-      </Card>
-    );
-  }
-
+  
   return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">Статистика дневника</h3>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="w-4 h-4" />
-            <span className="text-sm">Всего сессий</span>
+    <Card className="p-4 m-4 animate-fade-in">
+      <div className="grid grid-cols-3 gap-4">
+        {/* Всего сессий */}
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">Сессий</p>
+            <p className="text-lg font-semibold">{stats.total_sessions}</p>
           </div>
-          <p className="text-2xl font-bold">{stats.total_sessions}</p>
         </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <MessageCircle className="w-4 h-4" />
-            <span className="text-sm">Сообщений</span>
+        
+        {/* Среднее сообщений */}
+        <div className="flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">Ср. сообщений</p>
+            <p className="text-lg font-semibold">
+              {stats.avg_messages_per_session.toFixed(1)}
+            </p>
           </div>
-          <p className="text-2xl font-bold">{stats.total_messages}</p>
         </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            <span className="text-sm">Средняя длительность</span>
+        
+        {/* Активные сессии */}
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">Активных</p>
+            <p className="text-lg font-semibold">{stats.active_sessions}</p>
           </div>
-          <p className="text-2xl font-bold">
-            {Math.round(stats.avg_session_duration)} мин
-          </p>
-        </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-sm">Сообщений/сессия</span>
-          </div>
-          <p className="text-2xl font-bold">
-            {stats.avg_messages_per_session.toFixed(1)}
-          </p>
         </div>
       </div>
-
+      
+      {/* Топ эмоции */}
       {stats.top_emotions && Object.keys(stats.top_emotions).length > 0 && (
-        <div className="mt-6 pt-6 border-t">
-          <h4 className="text-sm font-medium mb-3">Самые частые эмоции</h4>
-          <div className="space-y-2">
-            {Object.entries(stats.top_emotions)
-              .sort(([, a], [, b]) => (b as number) - (a as number))
-              .slice(0, 3)
-              .map(([emotion, count]) => (
-                <div key={emotion} className="flex justify-between items-center">
-                  <span className="text-sm capitalize">{emotion}</span>
-                  <span className="text-sm font-medium">{count}</span>
-                </div>
-              ))}
+        <div className="mt-3 pt-3 border-t">
+          <p className="text-xs text-muted-foreground mb-1">Топ эмоции:</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(stats.top_emotions).slice(0, 3).map(([emotion, count]) => (
+              <span 
+                key={emotion}
+                className="text-xs bg-primary/10 text-primary px-2 py-1 rounded"
+              >
+                {emotion}: {count}
+              </span>
+            ))}
           </div>
         </div>
       )}

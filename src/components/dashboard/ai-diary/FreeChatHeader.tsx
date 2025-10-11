@@ -1,53 +1,48 @@
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Plus, StopCircle } from 'lucide-react';
+import { MessageSquarePlus, X } from 'lucide-react';
 
 interface FreeChatHeaderProps {
-  hasActiveSession: boolean;
+  sessionId: string | null;
   onNewSession: () => void;
   onEndSession: () => void;
 }
 
-export default function FreeChatHeader({
-  hasActiveSession,
-  onNewSession,
-  onEndSession
+export default function FreeChatHeader({ 
+  sessionId, 
+  onNewSession, 
+  onEndSession 
 }: FreeChatHeaderProps) {
   return (
-    <div className="border-b p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-semibold">AI Дневник</h2>
-          {hasActiveSession && (
-            <Badge variant="secondary" className="gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              Активная сессия
-            </Badge>
-          )}
-        </div>
+    <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center gap-2">
+        <h2 className="text-lg font-semibold">Свободное общение с AI</h2>
+        {sessionId && (
+          <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded">
+            Активная сессия
+          </span>
+        )}
+      </div>
+      
+      <div className="flex gap-2">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={onNewSession}
+        >
+          <MessageSquarePlus className="w-4 h-4 mr-2" />
+          Новая сессия
+        </Button>
         
-        <div className="flex items-center gap-2">
-          {hasActiveSession && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onEndSession}
-              className="gap-2"
-            >
-              <StopCircle className="w-4 h-4" />
-              Завершить
-            </Button>
-          )}
-          <Button
-            variant="default"
+        {sessionId && (
+          <Button 
+            variant="ghost" 
             size="sm"
-            onClick={onNewSession}
-            className="gap-2"
+            onClick={onEndSession}
           >
-            <Plus className="w-4 h-4" />
-            Новая сессия
+            <X className="w-4 h-4 mr-2" />
+            Завершить
           </Button>
-        </div>
+        )}
       </div>
     </div>
   );
