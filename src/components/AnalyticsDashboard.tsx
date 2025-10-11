@@ -11,16 +11,14 @@ import TrackerTrendChart from './TrackerTrendChart';
 import ActivitiesBarChart from './ActivitiesBarChart';
 import { TrackerAnalyticsChart } from '@/components/analytics/TrackerAnalyticsChart';
 import { CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-
-const SUPABASE_URL = 'https://wzgmfdtqxtuzujipoimc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6Z21mZHRxeHR1enVqaXBvaW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5Nzc5NzIsImV4cCI6MjA3NDU1Mzk3Mn0.6uBF_pdzy8PjSAPOvGwSonmWul8YYHBDwAMHz7Tytb8';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AnalyticsDashboard() {
   const [userId, setUserId] = useState<string>('');
-  const [userJwt, setUserJwt] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [periodFilter, setPeriodFilter] = useState('30');
   const [dataTypeFilter, setDataTypeFilter] = useState('all');
+  const { toast } = useToast();
 
   const [diaryEntries, setDiaryEntries] = useState<any[]>([]);
   const [trackerRecords, setTrackerRecords] = useState<any[]>([]);
@@ -31,17 +29,16 @@ export default function AnalyticsDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUserId(session.user.id);
-        setUserJwt(session.access_token);
       }
     };
     getSession();
   }, []);
 
   useEffect(() => {
-    if (userId && userJwt) {
+    if (userId) {
       fetchData();
     }
-  }, [userId, userJwt, periodFilter]);
+  }, [userId, periodFilter, dataTypeFilter]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -49,45 +46,53 @@ export default function AnalyticsDashboard() {
     const cutoffDate = subDays(new Date(), days).toISOString();
 
     try {
-      const headers = {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${userJwt}`,
-      };
-
       if (dataTypeFilter === 'all' || dataTypeFilter === 'diary') {
-        const diaryResponse = await fetch(
-          `${SUPABASE_URL}/rest/v1/ai_diary_messages?user_id=eq.${userId}&created_at=gte.${cutoffDate}&order=created_at.asc`,
-          { headers }
-        );
-        if (diaryResponse.ok) {
-          const data = await diaryResponse.json();
-          setDiaryEntries(data);
-        }
+        const { data, error } = await supabase
+          .from('ai_diary_messages')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('created_at', cutoffDate)
+          .order('created_at', { ascending: true });
+        
+        if (error) throw error;
+        setDiaryEntries(data || []);
+      } else {
+        setDiaryEntries([]);
       }
 
       if (dataTypeFilter === 'all' || dataTypeFilter === 'trackers') {
-        const trackerResponse = await fetch(
-          `${SUPABASE_URL}/rest/v1/tracker_records?user_id=eq.${userId}&timestamp=gte.${cutoffDate}&order=timestamp.asc`,
-          { headers }
-        );
-        if (trackerResponse.ok) {
-          const data = await trackerResponse.json();
-          setTrackerRecords(data);
-        }
+        const { data, error } = await supabase
+          .from('tracker_records')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('timestamp', cutoffDate)
+          .order('timestamp', { ascending: true });
+        
+        if (error) throw error;
+        setTrackerRecords(data || []);
+      } else {
+        setTrackerRecords([]);
       }
 
       if (dataTypeFilter === 'all' || dataTypeFilter === 'activities') {
-        const activitiesResponse = await fetch(
-          `${SUPABASE_URL}/rest/v1/activities?user_id=eq.${userId}&date=gte.${cutoffDate.split('T')[0]}&order=date.asc`,
-          { headers }
-        );
-        if (activitiesResponse.ok) {
-          const data = await activitiesResponse.json();
-          setActivities(data);
-        }
+        const { data, error } = await supabase
+          .from('activities')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('date', cutoffDate.split('T')[0])
+          .order('date', { ascending: true });
+        
+        if (error) throw error;
+        setActivities(data || []);
+      } else {
+        setActivities([]);
       }
-    } catch (error) {
-      console.error('Error fetching analytics data:', error);
+    } catch (error: any) {
+      toast({
+        title: 'Ошибка загрузки',
+        description: error.message || 'Не удалось загрузить данные аналитики',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -169,8 +174,14 @@ export default function AnalyticsDashboard() {
     return Object.entries(counts).map(([category, count]) => ({ category, count }));
   };
 
-  if (!userId || !userJwt) {
-    return null;
+  if (!userId) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
   }
 
   const stats = calculateStats();

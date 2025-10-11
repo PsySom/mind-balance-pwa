@@ -32,7 +32,6 @@ export default function TemplateList({ onPlay, onSchedule }: TemplateListProps) 
   }, [templates, searchQuery, categoryFilter, difficultyFilter]);
 
   const fetchTemplates = async () => {
-    console.log('📚 Fetching templates from Supabase...');
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -41,15 +40,10 @@ export default function TemplateList({ onPlay, onSchedule }: TemplateListProps) 
         .eq('is_active', true)
         .order('title->ru');
 
-      if (error) {
-        console.error('❌ Supabase error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('✅ Templates loaded:', data);
       setTemplates(data || []);
     } catch (error) {
-      console.error('❌ Error fetching templates:', error);
       toast({
         title: 'Ошибка',
         description: 'Не удалось загрузить шаблоны',

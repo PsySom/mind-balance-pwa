@@ -63,18 +63,18 @@ export default function Dashboard() {
         <AppSidebar />
 
         <div className="flex-1 flex flex-col">
-          <header className="bg-card border-b border-border px-4 md:px-6 py-4">
+          <header className="bg-card border-b border-border px-3 sm:px-4 md:px-6 py-3 md:py-4">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <SidebarTrigger className="hidden md:flex" />
                 <h1 
-                  className="text-xl md:text-2xl font-bold bg-clip-text text-transparent" 
+                  className="text-lg sm:text-xl md:text-2xl font-bold bg-clip-text text-transparent" 
                   style={{ backgroundImage: 'var(--gradient-primary)' }}
                 >
                   PsyBalance
                 </h1>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <ThemeToggle />
                 <TooltipProvider>
                   <Tooltip>
@@ -84,12 +84,13 @@ export default function Dashboard() {
                         size="icon" 
                         onClick={() => navigate('/help')}
                         aria-label="Справка"
+                        className="h-9 w-9 sm:h-10 sm:w-10"
                       >
-                        <HelpCircle className="w-5 h-5" />
+                        <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Справка и инструкции</p>
+                      <p>Справка</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -100,12 +101,13 @@ export default function Dashboard() {
                         size="icon" 
                         onClick={() => navigate('/settings')}
                         aria-label="Настройки"
+                        className="h-9 w-9 sm:h-10 sm:w-10"
                       >
-                        <SettingsIcon className="w-5 h-5" />
+                        <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Настройки профиля</p>
+                      <p>Настройки</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -121,7 +123,7 @@ export default function Dashboard() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Выйти из аккаунта</p>
+                      <p>Выход</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -130,8 +132,8 @@ export default function Dashboard() {
           </header>
 
           <main className="flex-1 pb-20 md:pb-6">
-            <div className="max-w-7xl mx-auto p-4 md:p-6">
-              <Tabs value={activeTab} className="space-y-6">
+            <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6">
+              <Tabs value={activeTab} className="space-y-4 sm:space-y-6">
                 <TabsList className="hidden">
                   <TabsTrigger value="journal">Дневник</TabsTrigger>
                   <TabsTrigger value="trackers">Трекеры</TabsTrigger>

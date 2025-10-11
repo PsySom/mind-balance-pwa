@@ -56,88 +56,90 @@ export default function PlannerDashboard() {
       </div>
 
       {/* Фильтры */}
-      <div className="flex flex-wrap gap-3 p-4 bg-muted/50 rounded-lg">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 p-3 sm:p-4 bg-muted/50 rounded-lg">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium">Фильтры:</span>
         </div>
 
-        {/* Фильтр по дате */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(
-                'justify-start text-left font-normal',
-                !filters.date && 'text-muted-foreground'
-              )}
-            >
-              <CalendarIcon className="w-4 h-4" />
-              {filters.date ? format(new Date(filters.date), 'PPP', { locale: ru }) : 'Дата'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={filters.date ? new Date(filters.date) : undefined}
-              onSelect={(date) => setFilters(prev => ({ ...prev, date: date ? format(date, 'yyyy-MM-dd') : '' }))}
-              initialFocus
-              className="p-3 pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:flex-1">
+          {/* Фильтр по дате */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'justify-start text-left font-normal w-full sm:w-auto',
+                  !filters.date && 'text-muted-foreground'
+                )}
+              >
+                <CalendarIcon className="w-4 h-4" />
+                {filters.date ? format(new Date(filters.date), 'PPP', { locale: ru }) : 'Дата'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={filters.date ? new Date(filters.date) : undefined}
+                onSelect={(date) => setFilters(prev => ({ ...prev, date: date ? format(date, 'yyyy-MM-dd') : '' }))}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
 
-        {/* Фильтр по статусу */}
-        <Select
-          value={filters.status}
-          onValueChange={(value: typeof filters.status) =>
-            setFilters(prev => ({ ...prev, status: value }))
-          }
-        >
-          <SelectTrigger className="w-[180px] h-9">
-            <SelectValue placeholder="Статус" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все статусы</SelectItem>
-            <SelectItem value="planned">Запланировано</SelectItem>
-            <SelectItem value="completed">Выполнено</SelectItem>
-            <SelectItem value="cancelled">Отменено</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Фильтр по категории */}
-        <Select
-          value={filters.category}
-          onValueChange={(value: typeof filters.category) =>
-            setFilters(prev => ({ ...prev, category: value }))
-          }
-        >
-          <SelectTrigger className="w-[180px] h-9">
-            <SelectValue placeholder="Категория" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все категории</SelectItem>
-            <SelectItem value="self_care">Забота о себе</SelectItem>
-            <SelectItem value="task">Задача</SelectItem>
-            <SelectItem value="habit">Привычка</SelectItem>
-            <SelectItem value="ritual">Ритуал</SelectItem>
-            <SelectItem value="routine">Рутина</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Сброс фильтров */}
-        {(filters.date || filters.status !== 'all' || filters.category !== 'all') && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilters({ date: '', status: 'all', category: 'all' })}
-            className="gap-1"
+          {/* Фильтр по статусу */}
+          <Select
+            value={filters.status}
+            onValueChange={(value: typeof filters.status) =>
+              setFilters(prev => ({ ...prev, status: value }))
+            }
           >
-            <X className="w-4 h-4" />
-            Сбросить
-          </Button>
-        )}
+            <SelectTrigger className="w-full sm:w-[160px] h-9">
+              <SelectValue placeholder="Статус" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все статусы</SelectItem>
+              <SelectItem value="planned">Запланировано</SelectItem>
+              <SelectItem value="completed">Выполнено</SelectItem>
+              <SelectItem value="cancelled">Отменено</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Фильтр по категории */}
+          <Select
+            value={filters.category}
+            onValueChange={(value: typeof filters.category) =>
+              setFilters(prev => ({ ...prev, category: value }))
+            }
+          >
+            <SelectTrigger className="w-full sm:w-[160px] h-9">
+              <SelectValue placeholder="Категория" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все категории</SelectItem>
+              <SelectItem value="self_care">Забота о себе</SelectItem>
+              <SelectItem value="task">Задача</SelectItem>
+              <SelectItem value="habit">Привычка</SelectItem>
+              <SelectItem value="ritual">Ритуал</SelectItem>
+              <SelectItem value="routine">Рутина</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Сброс фильтров */}
+          {(filters.date || filters.status !== 'all' || filters.category !== 'all') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFilters({ date: '', status: 'all', category: 'all' })}
+              className="gap-1 w-full sm:w-auto"
+            >
+              <X className="w-4 h-4" />
+              Сбросить
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="activities" className="space-y-4">

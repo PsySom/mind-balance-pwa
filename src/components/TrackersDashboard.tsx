@@ -5,21 +5,19 @@ import TrackerHistoryFromSupabase from './TrackerHistoryFromSupabase';
 
 export default function TrackersDashboard() {
   const [userId, setUserId] = useState<string>('');
-  const [userJwt, setUserJwt] = useState<string>('');
 
   useEffect(() => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUserId(session.user.id);
-        setUserJwt(session.access_token);
       }
     };
     getSession();
   }, []);
 
   const handleSubmit = () => {
-    // Отправка обрабатывается внутри TrackerForm
+    // Refresh is handled by TrackerHistoryFromSupabase
   };
 
   return (

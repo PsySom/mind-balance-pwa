@@ -8,17 +8,31 @@ import TrackerHistoryFromSupabase from './TrackerHistoryFromSupabase';
 export default function HistoryDashboard() {
   const [userId, setUserId] = useState<string>('');
   const [userJwt, setUserJwt] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const getSession = async () => {
+      setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUserId(session.user.id);
         setUserJwt(session.access_token);
       }
+      setIsLoading(false);
     };
     getSession();
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-semibold">История</h2>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Activity className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
 
   if (!userId || !userJwt) {
     return null;

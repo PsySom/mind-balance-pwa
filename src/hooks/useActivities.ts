@@ -89,17 +89,7 @@ export function useActivities() {
       // Валидация
       validateActivity(activity);
 
-      // Подготовка данных
       const preparedActivity = prepareActivityForSubmit(activity);
-      
-      // Логирование для отладки
-      console.log('📤 Sending activity to Supabase:', {
-        category: preparedActivity.category,
-        title: preparedActivity.title,
-        date: preparedActivity.date,
-        user_id: userId
-      });
-
       setIsLoading(true);
 
       const { data, error } = await supabase
@@ -110,12 +100,7 @@ export function useActivities() {
         }])
         .select();
 
-      if (error) {
-        console.error('❌ Supabase error:', error);
-        throw error;
-      }
-
-      console.log('✅ Activity created:', data);
+      if (error) throw error;
 
       toast({
         title: 'Активность создана',
@@ -125,7 +110,6 @@ export function useActivities() {
       await fetchActivities();
       return true;
     } catch (error: any) {
-      console.error('❌ Error creating activity:', error);
       toast({
         title: 'Ошибка создания',
         description: error.message || 'Не удалось создать активность',
