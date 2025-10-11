@@ -85,14 +85,25 @@ export function useAIDiaryChat() {
       realtimeChannelRef.current.unsubscribe();
     }
     
+    console.log('[AI Diary] Подписка на Realtime для сессии:', sessId);
+    
     realtimeChannelRef.current = aiDiarySessionsService.subscribeToSession(
       sessId,
-      handleNewAIMessage
+      (newMessage) => {
+        console.log('[AI Diary] Получено новое сообщение через Realtime:', newMessage);
+        handleNewAIMessage(newMessage);
+      }
     );
   };
   
   // Обработчик нового AI сообщения через Realtime
   const handleNewAIMessage = useCallback((aiMessageData: any) => {
+    // Очищаем fallback таймер если он был
+    if ((window as any).__fallbackTimer) {
+      clearTimeout((window as any).__fallbackTimer);
+      delete (window as any).__fallbackTimer;
+    }
+    
     setIsTyping(false);
     
     const aiMessage: ChatMessage = {
@@ -106,7 +117,12 @@ export function useAIDiaryChat() {
       isTyping: true
     };
     
-    setMessages(prev => [...prev, aiMessage]);
+    setMessages(prev => {
+      // Проверяем, не добавили ли уже это сообщение (через fallback)
+      const exists = prev.find(m => m.id === aiMessage.id);
+      if (exists) return prev;
+      return [...prev, aiMessage];
+    });
     
     // Эффект печати
     typeMessage(aiMessage.id, aiMessageData.ai_response);
@@ -183,10 +199,39 @@ export function useAIDiaryChat() {
         // Показываем индикатор "AI печатает..."
         setIsTyping(true);
         
-        // Ответ придет через Realtime в handleNewAIMessage
+        // FALLBACK: если через 30 секунд нет ответа через Realtime, добавляем вручную
+        const fallbackTimeout = setTimeout(() => {
+          if (response.data.ai_response) {
+            const aiMessage: ChatMessage = {
+              id: response.data.saved_entry_id || `ai_${Date.now()}`,
+              type: 'ai',
+              content: response.data.ai_response,
+              suggestions: response.data.suggestions || [],
+              emotions: response.data.emotions,
+              analysis: response.data.analysis,
+              timestamp: response.data.timestamp || new Date().toISOString()
+            };
+            
+            setMessages(prev => {
+              // Проверяем, не добавили ли уже это сообщение
+              const exists = prev.find(m => m.id === aiMessage.id);
+              if (exists) return prev;
+              return [...prev, aiMessage];
+            });
+            
+            setIsTyping(false);
+          }
+        }, 30000);
+        
+        // Сохраняем таймер для очистки
+        (window as any).__fallbackTimer = fallbackTimeout;
       }
     } catch (error: any) {
       console.error('Send message error:', error);
+      
+      // Удаляем сообщение пользователя при ошибке
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+      
       toast({
         title: 'Ошибка',
         description: 'Не удалось отправить сообщение. Попробуйте еще раз.',
@@ -234,6 +279,12 @@ export function useAIDiaryChat() {
   // Завершить сессию
   const endSession = async () => {
     if (!sessionId) return;
+    
+    // Очищаем fallback таймер если есть
+    if ((window as any).__fallbackTimer) {
+      clearTimeout((window as any).__fallbackTimer);
+      delete (window as any).__fallbackTimer;
+    }
     
     await aiDiarySessionsService.endSession(sessionId);
     

@@ -28,8 +28,8 @@ export default function FreeChatMessages({
         <div key={message.id}>
           <ChatMessage message={message} />
           
-          {/* Показываем suggestions только под последним AI сообщением */}
-          {message.type === 'ai' && 
+          {/* Показываем suggestions под последним сообщением (AI или system) */}
+          {(message.type === 'ai' || message.type === 'system') && 
            message.suggestions && 
            message.suggestions.length > 0 &&
            index === messages.length - 1 &&
@@ -44,7 +44,7 @@ export default function FreeChatMessages({
       
       {/* Индикатор "AI печатает..." */}
       {isTyping && (
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2 text-muted-foreground animate-fade-in">
           <Loader2 className="w-4 h-4 animate-spin" />
           <span className="text-sm">AI печатает...</span>
         </div>
