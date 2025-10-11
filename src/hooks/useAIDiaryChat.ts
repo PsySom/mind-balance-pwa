@@ -38,15 +38,32 @@ export function useAIDiaryChat() {
         setSessionId(currentSession.session_id);
         const history = await aiDiarySessionsService.getSessionMessages(currentSession.session_id);
         
-        const chatMessages: ChatMessage[] = history.map(msg => ({
-          id: msg.id,
-          type: msg.message_type as 'user' | 'ai',
-          content: msg.message_type === 'user' ? msg.message! : msg.ai_response!,
-          suggestions: msg.suggestions,
-          emotions: msg.emotions,
-          analysis: msg.analysis,
-          timestamp: msg.created_at
-        }));
+        // Каждая запись в БД содержит ОБА сообщения: от пользователя и ответ AI
+        const chatMessages: ChatMessage[] = [];
+        history.forEach(msg => {
+          // Добавляем сообщение пользователя
+          if (msg.message) {
+            chatMessages.push({
+              id: `${msg.id}_user`,
+              type: 'user',
+              content: msg.message,
+              timestamp: msg.created_at
+            });
+          }
+          
+          // Добавляем ответ AI
+          if (msg.ai_response) {
+            chatMessages.push({
+              id: msg.id,
+              type: 'ai',
+              content: msg.ai_response,
+              suggestions: msg.suggestions,
+              emotions: msg.emotions,
+              analysis: msg.analysis,
+              timestamp: msg.created_at
+            });
+          }
+        });
         
         setMessages(chatMessages);
         
@@ -101,9 +118,9 @@ export function useAIDiaryChat() {
     console.group('📨 Realtime Message Received');
     console.log('Message ID:', aiMessageData.id);
     console.log('Session ID:', aiMessageData.session_id);
-    console.log('Has AI Response:', !!aiMessageData.ai_response);
+    console.log('User Message:', aiMessageData.message);
+    console.log('AI Response:', aiMessageData.ai_response);
     console.log('Has Suggestions:', aiMessageData.suggestions?.length || 0);
-    console.log('Timestamp:', aiMessageData.created_at);
     console.groupEnd();
     
     // Очищаем fallback таймер если он был
@@ -114,26 +131,44 @@ export function useAIDiaryChat() {
     
     setIsTyping(false);
     
-    const aiMessage: ChatMessage = {
-      id: aiMessageData.id,
-      type: 'ai',
-      content: '',
-      suggestions: aiMessageData.suggestions || [],
-      emotions: aiMessageData.emotions,
-      analysis: aiMessageData.analysis,
-      timestamp: aiMessageData.created_at,
-      isTyping: true
-    };
-    
     setMessages(prev => {
-      // Проверяем, не добавили ли уже это сообщение (через fallback)
-      const exists = prev.find(m => m.id === aiMessage.id);
-      if (exists) return prev;
-      return [...prev, aiMessage];
+      const newMessages = [...prev];
+      
+      // 1. Добавляем сообщение пользователя, если его еще нет
+      if (aiMessageData.message) {
+        const userMessageId = `${aiMessageData.id}_user`;
+        const userExists = prev.find(m => m.id === userMessageId || m.content === aiMessageData.message);
+        
+        if (!userExists) {
+          newMessages.push({
+            id: userMessageId,
+            type: 'user',
+            content: aiMessageData.message,
+            timestamp: aiMessageData.created_at
+          });
+        }
+      }
+      
+      // 2. Добавляем AI сообщение, если его еще нет
+      const aiExists = prev.find(m => m.id === aiMessageData.id);
+      if (!aiExists && aiMessageData.ai_response) {
+        newMessages.push({
+          id: aiMessageData.id,
+          type: 'ai',
+          content: '',
+          suggestions: aiMessageData.suggestions || [],
+          emotions: aiMessageData.emotions,
+          analysis: aiMessageData.analysis,
+          timestamp: aiMessageData.created_at,
+          isTyping: true
+        });
+        
+        // Запускаем эффект печати
+        setTimeout(() => typeMessage(aiMessageData.id, aiMessageData.ai_response), 0);
+      }
+      
+      return newMessages;
     });
-    
-    // Эффект печати
-    typeMessage(aiMessage.id, aiMessageData.ai_response);
   }, []);
   
   // Эффект печати для AI ответов
