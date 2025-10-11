@@ -98,6 +98,14 @@ export function useAIDiaryChat() {
   
   // Обработчик нового AI сообщения через Realtime
   const handleNewAIMessage = useCallback((aiMessageData: any) => {
+    console.group('📨 Realtime Message Received');
+    console.log('Message ID:', aiMessageData.id);
+    console.log('Session ID:', aiMessageData.session_id);
+    console.log('Has AI Response:', !!aiMessageData.ai_response);
+    console.log('Has Suggestions:', aiMessageData.suggestions?.length || 0);
+    console.log('Timestamp:', aiMessageData.created_at);
+    console.groupEnd();
+    
     // Очищаем fallback таймер если он был
     if ((window as any).__fallbackTimer) {
       clearTimeout((window as any).__fallbackTimer);
@@ -178,6 +186,14 @@ export function useAIDiaryChat() {
     setMessages(prev => [...prev, userMessage]);
     
     try {
+      console.group('🤖 AI Diary - Send Message');
+      console.log('📤 Request:', {
+        userId: user.id,
+        sessionId: sessionId || 'new session',
+        messageLength: messageText.length,
+        timestamp: new Date().toISOString()
+      });
+      
       // Отправляем на backend
       const response = await aiDiaryService.sendMessage(
         session.access_token,
@@ -186,6 +202,48 @@ export function useAIDiaryChat() {
         sessionId,
         'ru'
       );
+      
+      console.log('📥 API Response:', {
+        success: response?.success,
+        hasData: !!response?.data,
+        hasAiResponse: !!response?.data?.ai_response,
+        hasSuggestions: response?.data?.suggestions?.length || 0,
+        hasEmotions: !!response?.data?.emotions,
+        savedEntryId: response?.data?.saved_entry_id,
+        sessionId: response?.data?.session_id
+      });
+      console.groupEnd();
+      
+      // Валидация ответа от API
+      if (!response || !response.data || typeof response.data !== 'object') {
+        console.error('❌ Invalid API response format:', response);
+        toast({
+          title: 'Ошибка формата ответа',
+          description: 'Сервер вернул некорректные данные',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!response.success) {
+        console.error('❌ API returned success=false:', response.data);
+        toast({
+          title: 'Ошибка сервера',
+          description: 'Сервер вернул ошибку',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Проверка обязательных полей
+      const requiredFields = ['ai_response', 'suggestions', 'emotions', 'analysis', 'session_id'];
+      const missingFields = requiredFields.filter(field => !response.data[field]);
+      
+      if (missingFields.length > 0) {
+        console.warn('⚠️ Missing fields in API response:', missingFields);
+      }
       
       if (response.success) {
         // Сохраняем или обновляем session_id
@@ -208,6 +266,12 @@ export function useAIDiaryChat() {
         const timeoutMs = isMock ? 1200 : 30000;
         
         const fallbackTimeout = setTimeout(() => {
+          console.warn('⚠️ Realtime timeout - using fallback response');
+          console.log('Fallback data:', {
+            messageId: response.data.saved_entry_id,
+            hasResponse: !!response.data.ai_response
+          });
+          
           if (response.data.ai_response) {
             const aiMessage: ChatMessage = {
               id: response.data.saved_entry_id || `ai_${Date.now()}`,
@@ -234,7 +298,50 @@ export function useAIDiaryChat() {
         (window as any).__fallbackTimer = fallbackTimeout;
       }
     } catch (error: any) {
-      console.error('[AI Diary] Ошибка отправки сообщения:', error);
+      console.group('❌ AI Diary Error');
+      console.error('Error details:', error);
+      
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+        
+        // Специфичные ошибки
+        if (error.response.status === 401) {
+          toast({
+            title: 'Ошибка авторизации',
+            description: 'Попробуйте перелогиниться',
+            variant: 'destructive'
+          });
+        } else if (error.response.status === 500) {
+          toast({
+            title: 'Ошибка сервера',
+            description: 'Попробуйте позже',
+            variant: 'destructive'
+          });
+        } else {
+          toast({
+            title: 'Ошибка отправки',
+            description: `Статус: ${error.response.status}`,
+            variant: 'destructive'
+          });
+        }
+      } else if (error.request) {
+        console.error('No response received');
+        toast({
+          title: 'Нет связи с сервером',
+          description: 'Проверьте подключение к интернету',
+          variant: 'destructive'
+        });
+      } else {
+        console.error('Request setup error:', error.message);
+        toast({
+          title: 'Ошибка запроса',
+          description: error.message,
+          variant: 'destructive'
+        });
+      }
+      
+      console.groupEnd();
       
       // Удаляем сообщение пользователя при ошибке
       setMessages(prev => prev.filter(m => m.id !== userMessage.id));
@@ -245,15 +352,6 @@ export function useAIDiaryChat() {
         delete (window as any).__fallbackTimer;
       }
       
-      // Показываем конкретную ошибку пользователю
-      const errorMessage = error?.message || 'Не удалось отправить сообщение';
-      toast({
-        title: 'Ошибка отправки',
-        description: errorMessage.includes('webhook') 
-          ? 'Проблема с сервером. Попробуйте позже.' 
-          : errorMessage,
-        variant: 'destructive'
-      });
       setIsTyping(false);
     } finally {
       setIsLoading(false);

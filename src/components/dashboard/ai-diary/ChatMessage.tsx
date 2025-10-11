@@ -3,6 +3,21 @@ import { cn } from '@/lib/utils';
 import { User, Bot } from 'lucide-react';
 import { format } from 'date-fns';
 
+// Маппинг эмоций на эмодзи
+const getEmotionEmoji = (emotion: string) => {
+  const emojiMap: Record<string, string> = {
+    joy: '😊',
+    trust: '🤗',
+    fear: '😰',
+    surprise: '😲',
+    sadness: '😢',
+    disgust: '🤢',
+    anger: '😠',
+    anticipation: '🤔'
+  };
+  return emojiMap[emotion.toLowerCase()] || '💭';
+};
+
 interface ChatMessageProps {
   message: ChatMessageType;
 }
@@ -51,13 +66,21 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             )}
           </p>
           
-          {/* Эмоции (только для AI сообщений) */}
-          {!isUser && message.emotions && (
-            <div className="mt-2 pt-2 border-t border-border/50">
-              <p className="text-xs text-muted-foreground">
-                Эмоция: <span className="font-medium">{message.emotions.primary}</span>
-                {' '}({message.emotions.intensity})
-              </p>
+          {/* Эмоции и анализ (только для AI сообщений) */}
+          {!isUser && (message.emotions || message.analysis) && (
+            <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+              {message.emotions && (
+                <p className="text-xs text-muted-foreground">
+                  {getEmotionEmoji(message.emotions.primary)} Эмоция:{' '}
+                  <span className="font-medium">{message.emotions.primary}</span>
+                  {' '}({message.emotions.intensity})
+                </p>
+              )}
+              {message.analysis?.mood_score && (
+                <p className="text-xs text-muted-foreground">
+                  📊 Настроение: <span className="font-medium">{message.analysis.mood_score}/10</span>
+                </p>
+              )}
             </div>
           )}
         </div>

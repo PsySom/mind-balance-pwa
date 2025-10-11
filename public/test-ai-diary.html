@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Diary v14 - Integration Test</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button.secondary {
+      background: #2196F3;
+    }
+    button.secondary:hover {
+      background: #0b7dda;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 5px;
+      border-left: 4px solid #4CAF50;
+      white-space: pre-wrap;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .success { color: #4CAF50; font-weight: bold; }
+    .error { color: #f44336; font-weight: bold; }
+    .info { color: #2196F3; }
+    .section {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 AI Diary v14 - Integration Test</h1>
+    <p class="subtitle">Тестирование интеграции frontend с n8n webhook</p>
+    
+    <div class="section">
+      <h3>Шаг 1: Подготовка</h3>
+      <button onclick="checkAuth()">Проверить авторизацию</button>
+      <button onclick="checkSession()">Проверить сессию</button>
+    </div>
+    
+    <div class="section">
+      <h3>Шаг 2: Тест webhook</h3>
+      <button class="secondary" onclick="testWebhook()">Тестовый запрос к webhook</button>
+    </div>
+    
+    <div class="section">
+      <h3>Шаг 3: Полная проверка</h3>
+      <button class="secondary" onclick="runFullTest()">Запустить полный тест</button>
+    </div>
+    
+    <div id="results"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const resultsDiv = document.getElementById('results');
+    
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+      resultsDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+      resultsDiv.scrollTop = resultsDiv.scrollHeight;
+    }
+    
+    function clear() {
+      resultsDiv.innerHTML = '';
+    }
+    
+    async function checkAuth() {
+      clear();
+      log('🔐 Проверка авторизации...');
+      
+      try {
+        const { createClient } = supabase;
+        const supabaseClient = createClient(
+          'https://wzgmfdtqxtuzujipoimc.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6Z21mZHRxeHR1enVqaXBvaW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MDM0NzYsImV4cCI6MjA3NTE3OTQ3Nn0.dO7bHV5kUZ3q4vLqB3jLFIZaKkFEOmtPvwdaYDr-DDY'
+        );
+        
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        
+        if (error) {
+          log('❌ Ошибка: ' + error.message, 'error');
+          return;
+        }
+        
+        if (!session) {
+          log('❌ Нет активной сессии. Пожалуйста, войдите в приложение.', 'error');
+          return;
+        }
+        
+        log('✅ Авторизация успешна', 'success');
+        log(`User ID: ${session.user.id}`);
+        log(`Email: ${session.user.email}`);
+        
+        window.testSession = session;
+      } catch (error) {
+        log('❌ Ошибка: ' + error.message, 'error');
+      }
+    }
+    
+    async function checkSession() {
+      clear();
+      log('📝 Проверка AI Diary сессии...');
+      
+      const sessionId = localStorage.getItem('ai_diary_session_id');
+      if (sessionId) {
+        log('✅ Найдена сессия: ' + sessionId, 'success');
+      } else {
+        log('⚠️ Нет активной AI Diary сессии', 'info');
+      }
+    }
+    
+    async function testWebhook() {
+      clear();
+      log('🚀 Тест webhook...');
+      
+      if (!window.testSession) {
+        log('❌ Сначала проверьте авторизацию', 'error');
+        return;
+      }
+      
+      const sessionId = localStorage.getItem('ai_diary_session_id');
+      const testData = {
+        userJwt: window.testSession.access_token,
+        user_id: window.testSession.user.id,
+        message: 'Тест интеграции v14',
+        session_id: sessionId,
+        locale: 'ru'
+      };
+      
+      log('📤 Отправка запроса...');
+      log(JSON.stringify(testData, null, 2));
+      
+      try {
+        const response = await fetch('https://mentalbalans.com/webhook/ai-diary-message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(testData)
+        });
+        
+        log(`📥 Ответ получен (${response.status} ${response.statusText})`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          log('❌ Ошибка webhook: ' + errorText, 'error');
+          return;
+        }
+        
+        const data = await response.json();
+        log('✅ Webhook работает!', 'success');
+        log('\n📊 Данные ответа:');
+        log(JSON.stringify(data, null, 2));
+        
+        if (data.success && data.data) {
+          log('\n✅ Проверка полей:', 'success');
+          log(`- ai_response: ${data.data.ai_response ? '✓' : '✗'}`);
+          log(`- suggestions: ${data.data.suggestions?.length || 0} шт.`);
+          log(`- emotions: ${data.data.emotions ? '✓' : '✗'}`);
+          log(`- analysis: ${data.data.analysis ? '✓' : '✗'}`);
+          log(`- session_id: ${data.data.session_id ? '✓' : '✗'}`);
+        }
+      } catch (error) {
+        log('❌ Ошибка: ' + error.message, 'error');
+      }
+    }
+    
+    async function runFullTest() {
+      clear();
+      log('🎯 Запуск полного теста интеграции...\n');
+      
+      await checkAuth();
+      log('\n');
+      await checkSession();
+      log('\n');
+      await testWebhook();
+      
+      log('\n✅ Тест завершен!', 'success');
+    }
+  </script>
+</body>
+</html>
