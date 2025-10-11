@@ -1,61 +1,34 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { aiDiarySessionsService, SessionStats, DiarySession } from '@/services/ai-diary-sessions.service';
+import { useAuth } from '@/hooks/useAuth';
+import { aiDiarySessionsService, SessionStats } from '@/services/ai-diary-sessions.service';
 
-export const useAIDiaryAnalytics = () => {
+export function useAIDiaryAnalytics() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<SessionStats | null>(null);
-  const [sessions, setSessions] = useState<DiarySession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userId, setUserId] = useState<string>('');
-
+  
   useEffect(() => {
-    const loadAnalytics = async () => {
+    if (!user) return;
+    
+    const loadStats = async () => {
       setIsLoading(true);
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setIsLoading(false);
-        return;
-      }
-
-      setUserId(session.user.id);
-
       try {
-        // Загружаем статистику
-        const userStats = await aiDiarySessionsService.getUserStats(session.user.id);
+        const userStats = await aiDiarySessionsService.getUserStats(user.id);
         setStats(userStats);
-
-        // Загружаем последние сессии
-        const userSessions = await aiDiarySessionsService.getUserSessions(session.user.id, 10);
-        setSessions(userSessions);
       } catch (error) {
-        console.error('Error loading analytics:', error);
+        console.error('Load stats error:', error);
       } finally {
         setIsLoading(false);
       }
     };
-
-    loadAnalytics();
-  }, []);
-
-  const refreshAnalytics = async () => {
-    if (!userId) return;
     
-    try {
-      const userStats = await aiDiarySessionsService.getUserStats(userId);
-      setStats(userStats);
-
-      const userSessions = await aiDiarySessionsService.getUserSessions(userId, 10);
-      setSessions(userSessions);
-    } catch (error) {
-      console.error('Error refreshing analytics:', error);
-    }
-  };
-
-  return {
-    stats,
-    sessions,
-    isLoading,
-    refreshAnalytics
-  };
-};
+    loadStats();
+    
+    // Обновляем статистику каждые 30 секунд
+    const interval = setInterval(loadStats, 30000);
+    
+    return () => clearInterval(interval);
+  }, [user]);
+  
+  return { stats, isLoading };
+}

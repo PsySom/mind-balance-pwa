@@ -16,7 +16,19 @@ interface ChatMessageProps {
 export default function ChatMessage({ message }: ChatMessageProps) {
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
 
-  const isUser = message.role === 'user';
+  const isUser = message.type === 'user';
+  const isSystem = message.type === 'system';
+
+  // Системные сообщения (приветствия) показываем по центру
+  if (isSystem) {
+    return (
+      <div className="flex justify-center">
+        <Card className="p-4 bg-muted/50 max-w-[80%] text-center">
+          <p className="text-sm">{message.content}</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -28,7 +40,10 @@ export default function ChatMessage({ message }: ChatMessageProps) {
 
       <div className={`flex flex-col gap-2 max-w-[80%] ${isUser ? 'items-end' : 'items-start'}`}>
         <Card className={`p-4 ${isUser ? 'bg-primary text-primary-foreground' : 'bg-card'}`}>
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap">
+            {message.content}
+            {message.isTyping && <span className="animate-pulse">▋</span>}
+          </p>
           <p className="text-xs opacity-70 mt-2">
             {format(new Date(message.timestamp), 'HH:mm', { locale: ru })}
           </p>
