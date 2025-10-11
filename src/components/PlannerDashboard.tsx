@@ -59,6 +59,37 @@ export default function PlannerDashboard() {
 
     console.log('📋 Fetching activities with filters:', filters);
     setIsLoading(true);
+
+    // Fallback: read directly from DB if webhook fails or returns empty
+    const fetchActivitiesDirect = async () => {
+      try {
+        console.log('📚 Fallback: loading activities directly from DB');
+        let query = supabase
+          .from('activities')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (filters.date) query = query.eq('date', filters.date);
+        if (filters.status !== 'all') query = query.eq('status', filters.status as any);
+        if (filters.category !== 'all') query = query.eq('category', filters.category as any);
+
+        const { data, error } = await query
+          .order('date', { ascending: true })
+          .order('time_start', { ascending: true });
+
+        if (error) {
+          console.error('❌ DB fallback error:', error);
+          return false;
+        }
+        console.log('✅ Activities (DB fallback):', data);
+        setActivities((data as Activity[]) || []);
+        return true;
+      } catch (e) {
+        console.error('❌ Unexpected DB fallback error:', e);
+        return false;
+      }
+    };
+
     try {
       const filterParams = buildFilterParams(filters);
 
@@ -83,14 +114,16 @@ export default function PlannerDashboard() {
 
       if (!response.ok) {
         console.error('❌ Response not OK:', response.status, response.statusText);
-        throw new Error('Ошибка при загрузке активностей');
+        const ok = await fetchActivitiesDirect();
+        if (!ok) throw new Error('Ошибка при загрузке активностей');
+        return;
       }
 
       // Проверка на пустой ответ
       const text = await response.text();
       if (!text || text.trim() === '') {
-        console.warn('⚠️ Empty response from webhook');
-        setActivities([]);
+        console.warn('⚠️ Empty response from webhook - using DB fallback');
+        await fetchActivitiesDirect();
         return;
       }
 
@@ -99,23 +132,31 @@ export default function PlannerDashboard() {
         data = JSON.parse(text);
       } catch (parseError) {
         console.error('❌ JSON parse error:', parseError, 'Response text:', text);
-        throw new Error('Некорректный ответ сервера');
+        const ok = await fetchActivitiesDirect();
+        if (!ok) throw new Error('Некорректный ответ сервера');
+        return;
       }
 
       console.log('✅ Activities loaded:', data);
-      setActivities(data.activities || []);
+      if (Array.isArray(data)) {
+        setActivities(data);
+      } else {
+        setActivities(data.activities || []);
+      }
     } catch (error) {
       console.error('❌ Error fetching activities:', error);
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось загрузить активности',
-        variant: 'destructive',
-      });
+      const ok = await fetchActivitiesDirect();
+      if (!ok) {
+        toast({
+          title: 'Ошибка',
+          description: 'Не удалось загрузить активности',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
   };
-
   const handleWebhookRequest = async (action: string, data?: any) => {
     console.log(`🚀 Webhook ${action}:`, data);
     try {
