@@ -132,26 +132,28 @@ export function useAIDiaryChat() {
     setIsTyping(false);
     
     setMessages(prev => {
+      // Проверяем, нет ли уже этого AI сообщения (защита от дубликатов)
+      const aiExists = prev.find(m => m.id === aiMessageData.id);
+      if (aiExists) return prev;
+      
+      // Одна запись БД = одна пара сообщений (user + AI)
+      const userMessageId = `${aiMessageData.id}_user`;
+      const userExists = prev.find(m => m.id === userMessageId);
+      
       const newMessages = [...prev];
       
-      // 1. Добавляем сообщение пользователя, если его еще нет
-      if (aiMessageData.message) {
-        const userMessageId = `${aiMessageData.id}_user`;
-        const userExists = prev.find(m => m.id === userMessageId || m.content === aiMessageData.message);
-        
-        if (!userExists) {
-          newMessages.push({
-            id: userMessageId,
-            type: 'user',
-            content: aiMessageData.message,
-            timestamp: aiMessageData.created_at
-          });
-        }
+      // Добавляем user сообщение если его нет (может быть из optimistic update)
+      if (!userExists && aiMessageData.message) {
+        newMessages.push({
+          id: userMessageId,
+          type: 'user',
+          content: aiMessageData.message,
+          timestamp: aiMessageData.created_at
+        });
       }
       
-      // 2. Добавляем AI сообщение, если его еще нет
-      const aiExists = prev.find(m => m.id === aiMessageData.id);
-      if (!aiExists && aiMessageData.ai_response) {
+      // Добавляем AI сообщение с эффектом печати
+      if (aiMessageData.ai_response) {
         newMessages.push({
           id: aiMessageData.id,
           type: 'ai',
