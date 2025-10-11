@@ -8,15 +8,17 @@ import { List, Lightbulb, CalendarIcon, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import type { Activity, ActivityInput, Template } from '@/types/activity';
+import type { ActivityInput, Template } from '@/types/activity';
 import { templateToActivity } from '@/lib/activityHelpers';
 import { useActivities } from '@/hooks/useActivities';
-import ActivityForm from './ActivityForm';
 import ActivityList from './ActivityList';
 import TemplateList from './TemplateList';
+import ScheduleActivityDialog from './ScheduleActivityDialog';
+import PlayTemplateDialog from './PlayTemplateDialog';
 
 export default function PlannerDashboard() {
-  const [selectedTemplate, setSelectedTemplate] = useState<ActivityInput | null>(null);
+  const [playTemplate, setPlayTemplate] = useState<Template | null>(null);
+  const [scheduleTemplate, setScheduleTemplate] = useState<Template | null>(null);
   const {
     activities,
     isLoading,
@@ -28,30 +30,29 @@ export default function PlannerDashboard() {
     toggleComplete,
   } = useActivities();
 
-  const handleSelectTemplate = (template: Template) => {
-    const activityData = templateToActivity(template);
-    setSelectedTemplate(activityData);
+  const handlePlay = (template: Template) => {
+    setPlayTemplate(template);
   };
 
-  const handleCreate = async (activity: ActivityInput) => {
+  const handleScheduleClick = (template: Template) => {
+    setScheduleTemplate(template);
+  };
+
+  const handleSchedule = async (template: Template, date: string, timeStart?: string, timeEnd?: string) => {
+    const activityData = templateToActivity(template);
+    const activity: ActivityInput = {
+      ...activityData,
+      date,
+      time_start: timeStart,
+      time_end: timeEnd,
+    };
     await createActivity(activity);
-    setSelectedTemplate(null);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold">Планировщик активностей</h2>
-        {selectedTemplate ? (
-          <ActivityForm
-            isLoading={isLoading}
-            onSubmit={handleCreate}
-            activity={selectedTemplate}
-            trigger={null}
-          />
-        ) : (
-          <ActivityForm isLoading={isLoading} onSubmit={handleCreate} />
-        )}
       </div>
 
       {/* Фильтры */}
@@ -162,9 +163,22 @@ export default function PlannerDashboard() {
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-4">
-          <TemplateList onSelectTemplate={handleSelectTemplate} />
+          <TemplateList onPlay={handlePlay} onSchedule={handleScheduleClick} />
         </TabsContent>
       </Tabs>
+
+      <ScheduleActivityDialog
+        template={scheduleTemplate}
+        open={!!scheduleTemplate}
+        onOpenChange={(open) => !open && setScheduleTemplate(null)}
+        onSchedule={handleSchedule}
+      />
+
+      <PlayTemplateDialog
+        template={playTemplate}
+        open={!!playTemplate}
+        onOpenChange={(open) => !open && setPlayTemplate(null)}
+      />
     </div>
   );
 }

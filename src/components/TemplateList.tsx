@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Clock, Star, Search, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Template } from '@/types/activity';
 import { CATEGORY_LABELS } from '@/types/activity';
+import TemplateCard from './TemplateCard';
 
 interface TemplateListProps {
-  onSelectTemplate: (template: Template) => void;
+  onPlay: (template: Template) => void;
+  onSchedule: (template: Template) => void;
 }
 
-export default function TemplateList({ onSelectTemplate }: TemplateListProps) {
+export default function TemplateList({ onPlay, onSchedule }: TemplateListProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -84,17 +84,6 @@ export default function TemplateList({ onSelectTemplate }: TemplateListProps) {
     setFilteredTemplates(filtered);
   };
 
-  const renderStars = (level: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`w-4 h-4 ${
-          i < level ? 'fill-yellow-400 text-yellow-400' : 'text-muted'
-        }`}
-      />
-    ));
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -157,49 +146,12 @@ export default function TemplateList({ onSelectTemplate }: TemplateListProps) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredTemplates.map((template) => (
-            <Card key={template.id} className="p-4 space-y-3 hover:shadow-lg transition-shadow">
-              <div className="space-y-2">
-                <h3 className="font-semibold line-clamp-1">{template.title.ru}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {template.description.ru}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant="secondary"
-                  className="text-xs"
-                >
-                  <div
-                    className={`w-2 h-2 rounded-full ${
-                      template.category === 'self_care' ? 'bg-green-500' :
-                      template.category === 'task' ? 'bg-blue-500' :
-                      template.category === 'habit' ? 'bg-purple-500' :
-                      template.category === 'ritual' ? 'bg-orange-500' :
-                      'bg-pink-500'
-                    } mr-1`}
-                  />
-                  {CATEGORY_LABELS[template.category]}
-                </Badge>
-
-                <Badge variant="outline" className="text-xs gap-1">
-                  <Clock className="w-3 h-3" />
-                  {template.duration_min} мин
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t">
-                <div className="flex items-center gap-1">
-                  {renderStars(template.difficulty_level)}
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => onSelectTemplate(template)}
-                >
-                  Использовать
-                </Button>
-              </div>
-            </Card>
+            <TemplateCard
+              key={template.id}
+              template={template}
+              onPlay={onPlay}
+              onSchedule={onSchedule}
+            />
           ))}
         </div>
       )}
