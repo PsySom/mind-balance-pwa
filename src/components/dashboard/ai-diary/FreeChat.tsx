@@ -3,6 +3,7 @@ import FreeChatHeader from './FreeChatHeader';
 import FreeChatMessages from './FreeChatMessages';
 import FreeChatInput from './FreeChatInput';
 import AIDiaryStats from './AIDiaryStats';
+import DebugJwtButton from './DebugJwtButton';
 
 export default function FreeChat() {
   const {
@@ -18,6 +19,9 @@ export default function FreeChat() {
   
   return (
     <div className="flex flex-col h-full">
+      {/* Debug кнопка для копирования JWT */}
+      <DebugJwtButton />
+      
       {/* Статистика сверху */}
       <AIDiaryStats sessionId={sessionId} />
       
