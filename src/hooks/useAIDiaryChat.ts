@@ -227,14 +227,24 @@ export function useAIDiaryChat() {
         (window as any).__fallbackTimer = fallbackTimeout;
       }
     } catch (error: any) {
-      console.error('Send message error:', error);
+      console.error('[AI Diary] Ошибка отправки сообщения:', error);
       
       // Удаляем сообщение пользователя при ошибке
       setMessages(prev => prev.filter(m => m.id !== userMessage.id));
       
+      // Очищаем fallback таймер
+      if ((window as any).__fallbackTimer) {
+        clearTimeout((window as any).__fallbackTimer);
+        delete (window as any).__fallbackTimer;
+      }
+      
+      // Показываем конкретную ошибку пользователю
+      const errorMessage = error?.message || 'Не удалось отправить сообщение';
       toast({
-        title: 'Ошибка',
-        description: 'Не удалось отправить сообщение. Попробуйте еще раз.',
+        title: 'Ошибка отправки',
+        description: errorMessage.includes('webhook') 
+          ? 'Проблема с сервером. Попробуйте позже.' 
+          : errorMessage,
         variant: 'destructive'
       });
       setIsTyping(false);

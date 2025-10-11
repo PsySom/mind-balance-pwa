@@ -32,6 +32,8 @@ class AIDiaryService {
     sessionId: string | null,
     locale: string = 'ru'
   ): Promise<any> {
+    console.log('[AI Diary Service] Отправка сообщения:', { userId, sessionId, messageLength: message.length });
+    
     const response = await fetch('https://mentalbalans.com/webhook/ai-diary-message', {
       method: 'POST',
       headers: {
@@ -46,11 +48,30 @@ class AIDiaryService {
       })
     });
 
+    console.log('[AI Diary Service] Статус ответа:', response.status, response.statusText);
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('[AI Diary Service] Ошибка webhook:', errorText);
+      throw new Error(`Webhook error! status: ${response.status}, message: ${errorText}`);
     }
 
-    return await response.json();
+    const text = await response.text();
+    console.log('[AI Diary Service] Текст ответа:', text);
+    
+    if (!text || text.trim() === '') {
+      console.error('[AI Diary Service] Пустой ответ от webhook');
+      throw new Error('Webhook вернул пустой ответ');
+    }
+
+    try {
+      const data = JSON.parse(text);
+      console.log('[AI Diary Service] Распарсенный ответ:', data);
+      return data;
+    } catch (e) {
+      console.error('[AI Diary Service] Ошибка парсинга JSON:', e, 'Текст:', text);
+      throw new Error('Webhook вернул невалидный JSON');
+    }
   }
 
   /**
