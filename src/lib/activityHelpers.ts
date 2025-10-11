@@ -1,4 +1,26 @@
-import type { Activity, ActivityInput, Template } from '@/types/activity';
+import type { Activity, ActivityInput, Template, ActivityCategory } from '@/types/activity';
+
+export const VALID_CATEGORIES: ActivityCategory[] = [
+  'self_care',
+  'task',
+  'habit',
+  'ritual',
+  'routine'
+] as const;
+
+/**
+ * Возвращает локализованную метку для категории
+ */
+export function getCategoryLabel(category: ActivityCategory): string {
+  const labels: Record<ActivityCategory, string> = {
+    'self_care': 'Забота о себе',
+    'task': 'Задача',
+    'habit': 'Привычка',
+    'ritual': 'Ритуал',
+    'routine': 'Рутина'
+  };
+  return labels[category] || category;
+}
 
 /**
  * Форматирует время из HH:MM в HH:MM:SS
@@ -44,31 +66,24 @@ export function prepareActivityForSubmit(activity: ActivityInput): ActivityInput
 
 /**
  * Валидирует данные активности
- * Возвращает объект с ошибкой или null если валидация прошла
+ * Выбрасывает ошибку если валидация не прошла
  */
-export function validateActivity(activity: ActivityInput): { title: string; description: string } | null {
+export function validateActivity(activity: ActivityInput): void {
   if (!activity.title?.trim()) {
-    return {
-      title: 'Ошибка валидации',
-      description: 'Название обязательно',
-    };
+    throw new Error('Название обязательно');
   }
   
   if (!activity.date) {
-    return {
-      title: 'Ошибка валидации',
-      description: 'Дата обязательна',
-    };
+    throw new Error('Дата обязательна');
+  }
+  
+  if (activity.category && !VALID_CATEGORIES.includes(activity.category)) {
+    throw new Error(`Недопустимая категория: ${activity.category}`);
   }
   
   if (activity.duration_min !== undefined && activity.duration_min <= 0) {
-    return {
-      title: 'Ошибка валидации',
-      description: 'Длительность должна быть больше 0',
-    };
+    throw new Error('Длительность должна быть больше 0');
   }
-  
-  return null;
 }
 
 /**

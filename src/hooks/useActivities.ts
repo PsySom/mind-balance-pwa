@@ -75,48 +75,63 @@ export function useActivities() {
   };
 
   // Создание новой активности
-  const createActivity = async (activity: ActivityInput) => {
-    const validationError = validateActivity(activity);
-    if (validationError) {
+  const createActivity = async (activity: ActivityInput): Promise<boolean> => {
+    if (!userId) {
       toast({
-        title: validationError.title,
-        description: validationError.description,
+        title: 'Ошибка',
+        description: 'Необходимо войти',
         variant: 'destructive',
       });
-      return;
+      return false;
     }
 
-    const preparedActivity = prepareActivityForSubmit(activity);
-    
-    console.log('Creating activity with data:', { ...preparedActivity, user_id: userId });
-
-    setIsLoading(true);
     try {
-      const { error } = await supabase
+      // Валидация
+      validateActivity(activity);
+
+      // Подготовка данных
+      const preparedActivity = prepareActivityForSubmit(activity);
+      
+      // Логирование для отладки
+      console.log('📤 Sending activity to Supabase:', {
+        category: preparedActivity.category,
+        title: preparedActivity.title,
+        date: preparedActivity.date,
+        user_id: userId
+      });
+
+      setIsLoading(true);
+
+      const { data, error } = await supabase
         .from('activities')
-        .insert({
+        .insert([{
           ...preparedActivity,
           user_id: userId,
-        });
+        }])
+        .select();
 
       if (error) {
-        console.error('Error creating activity:', error);
+        console.error('❌ Supabase error:', error);
         throw error;
       }
 
+      console.log('✅ Activity created:', data);
+
       toast({
         title: 'Активность создана',
-        description: 'Новая активность успешно добавлена',
+        description: 'Активность успешно добавлена',
       });
 
       await fetchActivities();
-    } catch (error) {
-      console.error('Error creating activity:', error);
+      return true;
+    } catch (error: any) {
+      console.error('❌ Error creating activity:', error);
       toast({
-        title: 'Ошибка',
-        description: 'Не удалось создать активность',
+        title: 'Ошибка создания',
+        description: error.message || 'Не удалось создать активность',
         variant: 'destructive',
       });
+      return false;
     } finally {
       setIsLoading(false);
     }

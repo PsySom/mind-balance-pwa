@@ -1,8 +1,15 @@
+export type ActivityCategory = 
+  | 'self_care'
+  | 'task'
+  | 'habit'
+  | 'ritual'
+  | 'routine';
+
 export interface Activity {
   id: string;
   title: string;
   description?: string;
-  category: 'self_care' | 'task' | 'habit' | 'ritual' | 'routine';
+  category: ActivityCategory;
   date: string; // YYYY-MM-DD
   time_start?: string; // HH:MM:SS
   time_end?: string; // HH:MM:SS
