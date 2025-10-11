@@ -34,7 +34,7 @@ class AIDiaryService {
   ): Promise<any> {
     
     // ВРЕМЕННО: Mock ответ для тестирования UI
-    const USE_MOCK = true; // ⚠️ Переключите на false когда n8n заработает
+    const USE_MOCK = false; // ⚠️ Переключите на false когда n8n заработает
     
     if (USE_MOCK) {
       console.log('🎭 Using MOCK response for testing');
