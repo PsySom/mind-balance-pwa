@@ -141,7 +141,8 @@ export default function PlannerDashboard() {
       // Проверка на пустой ответ
       const text = await response.text();
       if (!text || text.trim() === '') {
-        console.warn('⚠️ Empty response from webhook');
+        console.warn('⚠️ Empty response from webhook - fetching activities anyway');
+        await fetchActivities();
         return true;
       }
 
