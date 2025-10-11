@@ -88,28 +88,3 @@ export function templateToActivity(template: Template): ActivityInput {
   };
 }
 
-/**
- * Создает параметры фильтрации для API запроса
- */
-export function buildFilterParams(filters: {
-  date: string;
-  status: string;
-  category: string;
-}): Record<string, any> {
-  const params: Record<string, any> = {
-    date_from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    limit: 100,
-  };
-
-  if (filters.date) {
-    params.date = filters.date;
-  }
-  if (filters.status !== 'all') {
-    params.status = filters.status;
-  }
-  if (filters.category !== 'all') {
-    params.category = filters.category;
-  }
-
-  return params;
-}

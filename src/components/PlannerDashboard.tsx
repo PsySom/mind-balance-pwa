@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -10,319 +8,34 @@ import { List, Lightbulb, CalendarIcon, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import type { Activity, ActivityInput, ActivityFilters, Template } from '@/types/activity';
-import { 
-  prepareActivityForSubmit, 
-  validateActivity, 
-  templateToActivity,
-  buildFilterParams 
-} from '@/lib/activityHelpers';
+import type { Activity, ActivityInput, Template } from '@/types/activity';
+import { templateToActivity } from '@/lib/activityHelpers';
+import { useActivities } from '@/hooks/useActivities';
 import ActivityForm from './ActivityForm';
 import ActivityList from './ActivityList';
 import TemplateList from './TemplateList';
 
-const WEBHOOK_URL = 'https://mentalbalans.com/webhook/planner-sync';
-
 export default function PlannerDashboard() {
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [userId, setUserId] = useState<string>('');
-  const [userJwt, setUserJwt] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<ActivityInput | null>(null);
-  const [filters, setFilters] = useState<ActivityFilters>({
-    date: '',
-    status: 'all',
-    category: 'all',
-  });
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setUserId(session.user.id);
-        setUserJwt(session.access_token);
-      }
-    };
-    getSession();
-  }, []);
-
-  useEffect(() => {
-    if (userId && userJwt) {
-      fetchActivities();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, userJwt, filters.date, filters.status, filters.category]);
-
-  const fetchActivities = async () => {
-    if (!userId || !userJwt) return;
-
-    console.log('📋 Fetching activities with filters:', filters);
-    setIsLoading(true);
-
-    // Fallback: read directly from DB if webhook fails or returns empty
-    const fetchActivitiesDirect = async () => {
-      try {
-        console.log('📚 Fallback: loading activities directly from DB');
-        let query = supabase
-          .from('activities')
-          .select('*')
-          .eq('user_id', userId);
-
-        if (filters.date) query = query.eq('date', filters.date);
-        if (filters.status !== 'all') query = query.eq('status', filters.status as any);
-        if (filters.category !== 'all') query = query.eq('category', filters.category as any);
-
-        const { data, error } = await query
-          .order('date', { ascending: true })
-          .order('time_start', { ascending: true });
-
-        if (error) {
-          console.error('❌ DB fallback error:', error);
-          return false;
-        }
-        console.log('✅ Activities (DB fallback):', data);
-        setActivities((data as Activity[]) || []);
-        return true;
-      } catch (e) {
-        console.error('❌ Unexpected DB fallback error:', e);
-        return false;
-      }
-    };
-
-    try {
-      const filterParams = buildFilterParams(filters);
-
-      console.log('🌐 Webhook request:', {
-        action: 'list',
-        filters: filterParams,
-        user_id: userId
-      });
-
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userJwt,
-          user_id: userId,
-          action: 'list',
-          filters: filterParams,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error('❌ Response not OK:', response.status, response.statusText);
-        const ok = await fetchActivitiesDirect();
-        if (!ok) throw new Error('Ошибка при загрузке активностей');
-        return;
-      }
-
-      // Проверка на пустой ответ
-      const text = await response.text();
-      if (!text || text.trim() === '') {
-        console.warn('⚠️ Empty response from webhook - using DB fallback');
-        await fetchActivitiesDirect();
-        return;
-      }
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error('❌ JSON parse error:', parseError, 'Response text:', text);
-        const ok = await fetchActivitiesDirect();
-        if (!ok) throw new Error('Некорректный ответ сервера');
-        return;
-      }
-
-      console.log('✅ Activities loaded:', data);
-      if (Array.isArray(data)) {
-        setActivities(data);
-      } else {
-        setActivities(data.activities || []);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching activities:', error);
-      const ok = await fetchActivitiesDirect();
-      if (!ok) {
-        toast({
-          title: 'Ошибка',
-          description: 'Не удалось загрузить активности',
-          variant: 'destructive',
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  const handleWebhookRequest = async (action: string, data?: any) => {
-    console.log(`🚀 Webhook ${action}:`, data);
-    try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userJwt,
-          user_id: userId,
-          action,
-          data,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Webhook error response:', response.status, errorText);
-        throw new Error('Ошибка при выполнении операции');
-      }
-
-      // Проверка на пустой ответ
-      const text = await response.text();
-      if (!text || text.trim() === '') {
-        console.warn('⚠️ Empty response from webhook - fetching activities anyway');
-        await fetchActivities();
-        return true;
-      }
-
-      let result;
-      try {
-        result = JSON.parse(text);
-      } catch (parseError) {
-        console.error('❌ JSON parse error:', parseError, 'Response text:', text);
-        throw new Error('Некорректный ответ сервера');
-      }
-
-      console.log('✅ Webhook success:', result);
-
-      await fetchActivities();
-      return true;
-    } catch (error) {
-      console.error('❌ Webhook error:', error);
-      throw error;
-    }
-  };
-
-  const handleCreate = async (activity: ActivityInput) => {
-    console.log('➕ Creating activity:', activity);
-    
-    // Валидация
-    const validationError = validateActivity(activity);
-    if (validationError) {
-      console.warn('⚠️ Validation failed:', validationError);
-      toast({
-        title: validationError.title,
-        description: validationError.description,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Подготовка данных (форматирование времени)
-    const preparedActivity = prepareActivityForSubmit(activity);
-    console.log('📝 Prepared activity:', preparedActivity);
-
-    setIsLoading(true);
-    try {
-      await handleWebhookRequest('create', preparedActivity);
-      toast({
-        title: 'Активность создана',
-        description: 'Новая активность успешно добавлена',
-      });
-      setSelectedTemplate(null);
-    } catch (error) {
-      console.error('❌ Create error:', error);
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось создать активность',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUpdate = async (id: string, activity: ActivityInput) => {
-    console.log('✏️ Updating activity:', { id, ...activity });
-    
-    // Подготовка данных (форматирование времени)
-    const preparedActivity = prepareActivityForSubmit(activity);
-
-    setIsLoading(true);
-    try {
-      await handleWebhookRequest('update', { id, ...preparedActivity });
-      toast({
-        title: 'Активность обновлена',
-        description: 'Изменения успешно сохранены',
-      });
-    } catch (error) {
-      console.error('❌ Update error:', error);
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось обновить активность',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    console.log('🗑️ Deleting activity:', id);
-    setIsLoading(true);
-    try {
-      await handleWebhookRequest('delete', { id });
-      toast({
-        title: 'Активность удалена',
-        description: 'Активность успешно удалена',
-      });
-    } catch (error) {
-      console.error('❌ Delete error:', error);
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось удалить активность',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleToggleComplete = async (id: string, currentStatus: Activity['status']) => {
-    console.log('✅ Toggling completion:', { id, currentStatus });
-    setIsLoading(true);
-    try {
-      const newStatus = currentStatus === 'completed' ? 'planned' : 'completed';
-      const completionNote = newStatus === 'completed' ? 'Выполнено' : '';
-      
-      await handleWebhookRequest('complete', { 
-        id, 
-        status: newStatus,
-        completion_note: completionNote 
-      });
-      
-      toast({
-        title: newStatus === 'completed' ? 'Выполнено' : 'Отменена отметка',
-        description: newStatus === 'completed' ? 'Активность отмечена как выполненная' : 'Статус изменен на запланирован',
-      });
-    } catch (error) {
-      console.error('❌ Toggle error:', error);
-      toast({
-        title: 'Ошибка',
-        description: 'Не удалось изменить статус',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const {
+    activities,
+    isLoading,
+    filters,
+    setFilters,
+    createActivity,
+    updateActivity,
+    deleteActivity,
+    toggleComplete,
+  } = useActivities();
 
   const handleSelectTemplate = (template: Template) => {
     const activityData = templateToActivity(template);
-    console.log('📋 Template selected:', activityData);
     setSelectedTemplate(activityData);
+  };
+
+  const handleCreate = async (activity: ActivityInput) => {
+    await createActivity(activity);
+    setSelectedTemplate(null);
   };
 
   return (
@@ -442,9 +155,9 @@ export default function PlannerDashboard() {
           <ActivityList
             activities={activities}
             isLoading={isLoading}
-            onToggleComplete={handleToggleComplete}
-            onUpdate={handleUpdate}
-            onDelete={handleDelete}
+            onToggleComplete={toggleComplete}
+            onUpdate={updateActivity}
+            onDelete={deleteActivity}
           />
         </TabsContent>
 
