@@ -61,9 +61,6 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         )}>
           <p className="text-sm whitespace-pre-wrap">
             {message.content}
-            {message.isTyping && (
-              <span className="inline-block w-1 h-4 bg-current ml-1 animate-pulse" />
-            )}
           </p>
           
           {/* Эмоции и анализ (только для AI сообщений) */}

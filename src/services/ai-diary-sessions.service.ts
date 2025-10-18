@@ -168,6 +168,31 @@ class AIDiarySessionsService {
 
     return channel;
   }
+
+  /**
+   * Проверяет существование и валидность сессии
+   */
+  async validateSession(sessionId: string, userId: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('ai_diary_sessions')
+        .select('id, status')
+        .eq('session_id', sessionId)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+      
+      if (error) {
+        console.error('❌ Validate session error:', error);
+        return false;
+      }
+      
+      return !!data;
+    } catch (error) {
+      console.error('❌ Validate session exception:', error);
+      return false;
+    }
+  }
 }
 
 export const aiDiarySessionsService = new AIDiarySessionsService();

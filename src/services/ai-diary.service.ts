@@ -21,135 +21,102 @@ export interface DiaryMessage {
   created_at: string;
 }
 
+interface SendMessageParams {
+  userJwt: string;
+  user_id: string;
+  message: string;
+  session_id: string | null;
+  locale?: string;
+}
+
+interface AIResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    session_id: string;
+    ai_response: string;
+    suggestions?: string[];
+    emotions?: any;
+    analysis?: any;
+    saved_entry_id: string;
+    timestamp: string;
+  };
+}
+
+const WEBHOOK_URL = 'https://mentalbalans.com/webhook';
+
 class AIDiaryService {
   /**
    * Отправить сообщение в AI дневник
    */
-  async sendMessage(
-    userJwt: string,
-    userId: string,
-    message: string,
-    sessionId: string | null,
-    locale: string = 'ru'
-  ): Promise<any> {
-    
-    // ВРЕМЕННО: Mock ответ для тестирования UI
-    const USE_MOCK = false; // ⚠️ Переключите на false когда n8n заработает
-    
-    if (USE_MOCK) {
-      console.log('🎭 Using MOCK response for testing');
+  async sendMessage(params: SendMessageParams): Promise<AIResponse> {
+    try {
+      console.log('📤 Sending message to webhook:', {
+        user_id: params.user_id,
+        session_id: params.session_id || 'NEW SESSION',
+        message_length: params.message.length
+      });
       
-      // Имитация задержки сети (как будто ждем AI)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch(`${WEBHOOK_URL}/ai-diary-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userJwt: params.userJwt,
+          user_id: params.user_id,
+          message: params.message,
+          session_id: params.session_id,
+          locale: params.locale || 'ru'
+        })
+      });
       
-      // Генерируем адаптивный ответ в зависимости от сообщения
-      const isStress = message.toLowerCase().includes('стресс') || 
-                       message.toLowerCase().includes('тревог');
-      const isJoy = message.toLowerCase().includes('рад') || 
-                    message.toLowerCase().includes('счастлив');
-      
-      let aiResponse = '';
-      let suggestions = [];
-      let emotion = 'trust';
-      let moodScore = 5;
-      
-      if (isStress) {
-        aiResponse = 'Я понимаю, что вы испытываете стресс. Это непростое состояние. Расскажите, что именно вас сейчас беспокоит больше всего?';
-        suggestions = [
-          '🧘 Как справиться со стрессом?',
-          '😌 Покажи технику релаксации',
-          '📝 Расскажу что беспокоит подробнее',
-          '💭 Что я могу сделать прямо сейчас?'
-        ];
-        emotion = 'fear';
-        moodScore = 4;
-      } else if (isJoy) {
-        aiResponse = 'Как замечательно слышать о вашей радости! Поделитесь, что именно вас так порадовало?';
-        suggestions = [
-          '🎉 Расскажу что меня порадовало',
-          '💪 Хочу поделиться успехом',
-          '🎯 Как сохранить это состояние?',
-          '✨ Планирую развивать дальше'
-        ];
-        emotion = 'joy';
-        moodScore = 8;
-      } else {
-        aiResponse = 'Спасибо, что поделились. Я здесь, чтобы выслушать и поддержать вас. О чем хотели бы поговорить?';
-        suggestions = [
-          '😊 Расскажу о своих мыслях',
-          '🤔 Хочу разобраться в чувствах',
-          '💬 Поговорим о планах',
-          '🌟 Что меня вдохновляет'
-        ];
-        emotion = 'trust';
-        moodScore = 6;
+      // Детальная обработка HTTP ошибок
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Webhook error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        
+        if (response.status === 500) {
+          throw new Error('Сервер временно недоступен. Попробуйте позже.');
+        } else if (response.status === 401 || response.status === 403) {
+          throw new Error('Ошибка авторизации. Перезайдите в приложение.');
+        } else if (response.status === 400) {
+          throw new Error('Некорректный запрос. Проверьте данные.');
+        }
+        
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      // Mock ответ в формате API
-      return {
-        success: true,
-        data: {
-          session_id: sessionId || `mock_session_${Date.now()}`,
-          ai_response: aiResponse,
-          suggestions: suggestions,
-          emotions: {
-            primary: emotion,
-            intensity: 'moderate',
-            triggers: message.split(' ').slice(0, 3)
-          },
-          analysis: {
-            cognitive_distortions: isStress ? ['catastrophizing'] : [],
-            themes: ['общение', 'самопознание'],
-            mood_score: moodScore
-          },
-          saved_entry_id: `mock_entry_${Date.now()}`,
-          locale: locale,
-          timestamp: new Date().toISOString(),
-          is_mock: true
-        }
-      };
-    }
-    
-    // Реальный запрос к webhook (когда USE_MOCK = false)
-    console.log('[AI Diary Service] Отправка сообщения:', { userId, sessionId, messageLength: message.length });
-    
-    const response = await fetch('https://mentalbalans.com/webhook/ai-diary-message', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userJwt,
-        user_id: userId,
-        message,
-        session_id: sessionId,
-        locale
-      })
-    });
-
-    console.log('[AI Diary Service] Статус ответа:', response.status, response.statusText);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[AI Diary Service] Ошибка webhook:', errorText);
-      throw new Error(`Webhook error! status: ${response.status}, message: ${errorText}`);
-    }
-
-    const text = await response.text();
-    console.log('[AI Diary Service] Текст ответа:', text);
-    
-    if (!text || text.trim() === '') {
-      console.error('[AI Diary Service] Пустой ответ от webhook');
-      throw new Error('Webhook вернул пустой ответ');
-    }
-
-    try {
-      const data = JSON.parse(text);
-      console.log('[AI Diary Service] Распарсенный ответ:', data);
+      const data = await response.json();
+      console.log('✅ Webhook response:', {
+        success: data.success,
+        session_id: data.data?.session_id,
+        has_ai_response: !!data.data?.ai_response
+      });
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Unknown error');
+      }
+      
       return data;
-    } catch (e) {
-      console.error('[AI Diary Service] Ошибка парсинга JSON:', e, 'Текст:', text);
-      throw new Error('Webhook вернул невалидный JSON');
+      
+    } catch (error: any) {
+      console.error('❌ Send message error:', error);
+      
+      // Понятные сообщения для пользователя
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Нет подключения к серверу');
+      } else if (error.message.includes('NetworkError')) {
+        throw new Error('Проблема с сетью. Проверьте интернет.');
+      } else if (error.message.includes('timeout')) {
+        throw new Error('Превышено время ожидания. Попробуйте ещё раз.');
+      }
+      
+      throw error;
     }
   }
 

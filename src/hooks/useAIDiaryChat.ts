@@ -1,471 +1,453 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { aiDiaryService } from '@/services/ai-diary.service';
+import { supabase } from '@/integrations/supabase/client';
 import { aiDiarySessionsService } from '@/services/ai-diary-sessions.service';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { config } from '@/lib/config';
 
 export interface ChatMessage {
   id: string;
-  type: 'user' | 'ai' | 'system';
   content: string;
-  suggestions?: string[];
-  emotions?: any;
-  analysis?: any;
+  type: 'user' | 'ai' | 'system';
   timestamp: string;
-  isTyping?: boolean;
+  suggestions?: string[];
+  emotions?: {
+    primary: string;
+    intensity: string;
+    triggers: string[];
+  };
+  analysis?: {
+    cognitive_distortions: string[];
+    themes: string[];
+    mood_score: number;
+  };
 }
+
+type SessionStatus = 'loading' | 'active' | 'error';
 
 export function useAIDiaryChat() {
   const { user, session } = useAuth();
-  const { toast } = useToast();
-  
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  
-  const realtimeChannelRef = useRef<any>(null);
-  
-  // Инициализация - загрузка существующей сессии или показ приветствия
+  const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>('loading');
+  const fallbackTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // WELCOME MESSAGE
+  const WELCOME_MESSAGE: ChatMessage = {
+    id: 'welcome',
+    content: 'Привет! Я твой AI-помощник по ментальному здоровью. Расскажи, что у тебя на душе?',
+    type: 'system',
+    timestamp: new Date().toISOString(),
+    suggestions: [
+      '💭 Расскажу о своём дне',
+      '😔 Чувствую тревогу',
+      '🤔 Хочу разобраться в себе',
+      '😊 Поделюсь радостью'
+    ]
+  };
+
+  // ИНИЦИАЛИЗАЦИЯ СЕССИИ
   useEffect(() => {
-    if (!user) return;
-    
     const initSession = async () => {
-      const currentSession = await aiDiarySessionsService.getCurrentSession(user.id);
+      if (!user?.id) return;
       
-      if (currentSession) {
-        // Загружаем историю существующей сессии
-        setSessionId(currentSession.session_id);
-        const history = await aiDiarySessionsService.getSessionMessages(currentSession.session_id);
+      try {
+        setSessionStatus('loading');
         
-        // Каждая запись в БД содержит ОБА сообщения: от пользователя и ответ AI
-        const chatMessages: ChatMessage[] = [];
-        history.forEach(msg => {
-          // Добавляем сообщение пользователя
-          if (msg.message) {
-            chatMessages.push({
-              id: `${msg.id}_user`,
-              type: 'user',
-              content: msg.message,
-              timestamp: msg.created_at
-            });
-          }
+        const savedSessionId = localStorage.getItem('ai_diary_session_id');
+        
+        if (savedSessionId) {
+          console.log('🔍 Checking saved session:', savedSessionId);
           
-          // Добавляем ответ AI
-          if (msg.ai_response) {
-            chatMessages.push({
-              id: msg.id,
-              type: 'ai',
-              content: msg.ai_response,
-              suggestions: msg.suggestions,
-              emotions: msg.emotions,
-              analysis: msg.analysis,
-              timestamp: msg.created_at
-            });
+          const isValid = await aiDiarySessionsService.validateSession(
+            savedSessionId,
+            user.id
+          );
+          
+          if (isValid) {
+            console.log('✅ Session is valid, loading history');
+            setSessionId(savedSessionId);
+            await loadSessionHistory(savedSessionId);
+          } else {
+            console.log('⚠️ Session invalid, clearing');
+            localStorage.removeItem('ai_diary_session_id');
+            setMessages([WELCOME_MESSAGE]);
           }
-        });
+        } else {
+          console.log('📝 No saved session, showing welcome');
+          setMessages([WELCOME_MESSAGE]);
+        }
         
-        setMessages(chatMessages);
-        
-        // Подписываемся на Realtime обновления
-        subscribeToSession(currentSession.session_id);
-      } else {
-        // Новый пользователь - показываем приветствие
-        setMessages([{
-          id: 'welcome',
-          type: 'system',
-          content: 'Привет! Я ваш AI-помощник для психологического благополучия. Расскажите, как ваше настроение сегодня?',
-          suggestions: [
-            'Расскажу о своем дне',
-            'Хочу поговорить о стрессе',
-            'Как дела?',
-            'Чувствую тревогу'
-          ],
-          timestamp: new Date().toISOString()
-        }]);
+        setSessionStatus('active');
+      } catch (error) {
+        console.error('❌ Session init error:', error);
+        setSessionStatus('error');
+        setMessages([WELCOME_MESSAGE]);
+        toast.error('Ошибка загрузки сессии');
       }
     };
     
     initSession();
-    
-    // Cleanup при размонтировании
-    return () => {
-      if (realtimeChannelRef.current) {
-        realtimeChannelRef.current.unsubscribe();
-      }
-    };
-  }, [user]);
-  
-  // Подписка на Realtime
-  const subscribeToSession = (sessId: string) => {
-    if (realtimeChannelRef.current) {
-      realtimeChannelRef.current.unsubscribe();
-    }
-    
-    console.log('[AI Diary] Подписка на Realtime для сессии:', sessId);
-    
-    realtimeChannelRef.current = aiDiarySessionsService.subscribeToSession(
-      sessId,
-      (newMessage) => {
-        console.log('[AI Diary] Получено новое сообщение через Realtime:', newMessage);
-        handleNewAIMessage(newMessage);
-      }
-    );
-  };
-  
-  // Обработчик нового AI сообщения через Realtime
-  const handleNewAIMessage = useCallback((aiMessageData: any) => {
-    console.group('📨 Realtime Message Received');
-    console.log('Message ID:', aiMessageData.id);
-    console.log('Session ID:', aiMessageData.session_id);
-    console.log('User Message:', aiMessageData.message);
-    console.log('AI Response:', aiMessageData.ai_response);
-    console.log('Has Suggestions:', aiMessageData.suggestions?.length || 0);
-    console.groupEnd();
-    
-    // Очищаем fallback таймер если он был
-    if ((window as any).__fallbackTimer) {
-      clearTimeout((window as any).__fallbackTimer);
-      delete (window as any).__fallbackTimer;
-    }
-    
-    setIsTyping(false);
-    
-    setMessages(prev => {
-      // Проверяем, нет ли уже этого AI сообщения (защита от дубликатов)
-      const aiExists = prev.find(m => m.id === aiMessageData.id);
-      if (aiExists) return prev;
+  }, [user?.id]);
+
+  // ЗАГРУЗКА ИСТОРИИ СЕССИИ
+  const loadSessionHistory = async (sid: string) => {
+    try {
+      const history = await aiDiarySessionsService.getSessionMessages(sid);
       
-      // Одна запись БД = одна пара сообщений (user + AI)
-      const userMessageId = `${aiMessageData.id}_user`;
-      const userExists = prev.find(m => m.id === userMessageId);
-      
-      const newMessages = [...prev];
-      
-      // Добавляем user сообщение если его нет (может быть из optimistic update)
-      if (!userExists && aiMessageData.message) {
-        newMessages.push({
-          id: userMessageId,
-          type: 'user',
-          content: aiMessageData.message,
-          timestamp: aiMessageData.created_at
-        });
+      if (history.length === 0) {
+        setMessages([WELCOME_MESSAGE]);
+        return;
       }
       
-      // Добавляем AI сообщение с эффектом печати
-      if (aiMessageData.ai_response) {
-        newMessages.push({
-          id: aiMessageData.id,
-          type: 'ai',
-          content: '',
-          suggestions: aiMessageData.suggestions || [],
-          emotions: aiMessageData.emotions,
-          analysis: aiMessageData.analysis,
-          timestamp: aiMessageData.created_at,
-          isTyping: true
-        });
-        
-        // Запускаем эффект печати
-        setTimeout(() => typeMessage(aiMessageData.id, aiMessageData.ai_response), 0);
-      }
+      const chatMessages: ChatMessage[] = [];
       
-      return newMessages;
-    });
-  }, []);
-  
-  // Эффект печати для AI ответов
-  const typeMessage = (messageId: string, fullText: string) => {
-    if (fullText.length <= 50) {
-      // Короткие сообщения показываем сразу с небольшой задержкой
-      setTimeout(() => {
-        setMessages(prev => prev.map(msg => 
-          msg.id === messageId 
-            ? { ...msg, content: fullText, isTyping: false }
-            : msg
-        ));
-      }, 500);
-    } else {
-      // Длинные сообщения печатаем посимвольно
-      let currentIndex = 0;
-      const typingSpeed = 30; // 30ms между символами
-      
-      const typeNextChar = () => {
-        if (currentIndex <= fullText.length) {
-          const currentText = fullText.substring(0, currentIndex);
-          setMessages(prev => prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: currentText, isTyping: currentIndex < fullText.length }
-              : msg
-          ));
-          currentIndex++;
-          setTimeout(typeNextChar, typingSpeed);
+      history.forEach((msg) => {
+        // User message
+        if (msg.message) {
+          chatMessages.push({
+            id: `${msg.id}-user`,
+            content: msg.message,
+            type: 'user',
+            timestamp: msg.created_at
+          });
         }
+        
+        // AI response
+        if (msg.ai_response) {
+          chatMessages.push({
+            id: msg.id,
+            content: msg.ai_response,
+            type: 'ai',
+            timestamp: msg.created_at,
+            suggestions: msg.suggestions || [],
+            emotions: msg.emotions,
+            analysis: msg.analysis
+          });
+        }
+      });
+      
+      setMessages(chatMessages);
+      console.log('✅ Loaded', chatMessages.length, 'messages');
+      
+    } catch (error) {
+      console.error('❌ Load history error:', error);
+      toast.error('Не удалось загрузить историю');
+      setMessages([WELCOME_MESSAGE]);
+    }
+  };
+
+  // REALTIME ПОДПИСКА
+  useEffect(() => {
+    if (!sessionId || !supabase) return;
+    
+    console.log('🔄 Setting up Realtime for session:', sessionId);
+    
+    if (realtimeChannel) {
+      realtimeChannel.unsubscribe();
+    }
+    
+    const channel = supabase
+      .channel(`ai_diary_session:${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ai_diary_messages',
+          filter: `session_id=eq.${sessionId}`
+        },
+        (payload) => {
+          console.log('📨 Realtime event:', payload.eventType);
+          
+          const newMessage = payload.new as any;
+          
+          if (newMessage.message_type === 'ai') {
+            handleNewAIMessage(newMessage);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Subscribed to Realtime');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime error');
+        }
+      });
+    
+    setRealtimeChannel(channel);
+    
+    return () => {
+      console.log('🔌 Unsubscribing from Realtime');
+      channel.unsubscribe();
+    };
+  }, [sessionId]);
+
+  // ОБРАБОТКА НОВОГО AI СООБЩЕНИЯ ИЗ REALTIME
+  const handleNewAIMessage = (dbMessage: any) => {
+    // Очищаем fallback таймер
+    if (fallbackTimeoutRef.current) {
+      clearTimeout(fallbackTimeoutRef.current);
+    }
+    
+    setMessages((prev) => {
+      const exists = prev.some((m) => m.id === dbMessage.id);
+      if (exists) {
+        console.log('⚠️ Message already exists:', dbMessage.id);
+        return prev;
+      }
+      
+      const aiMessage: ChatMessage = {
+        id: dbMessage.id,
+        content: dbMessage.ai_response,
+        type: 'ai',
+        timestamp: dbMessage.created_at,
+        suggestions: dbMessage.suggestions || [],
+        emotions: dbMessage.emotions,
+        analysis: dbMessage.analysis
       };
       
-      typeNextChar();
+      console.log('✅ Adding AI message from Realtime:', aiMessage.id);
+      
+      // Typing effect для длинных сообщений
+      if (aiMessage.content.length > 100) {
+        setIsTyping(true);
+        typeMessage(aiMessage).then(() => setIsTyping(false));
+        return prev;
+      }
+      
+      return [...prev, aiMessage];
+    });
+  };
+
+  // TYPING EFFECT
+  const typeMessage = async (message: ChatMessage) => {
+    const words = message.content.split(' ');
+    
+    if (words.length < 20) {
+      setMessages((prev) => [...prev, message]);
+      return;
+    }
+    
+    let displayedContent = '';
+    const tempMessage = { ...message, content: '' };
+    
+    setMessages((prev) => [...prev, tempMessage]);
+    
+    for (let i = 0; i < words.length; i++) {
+      displayedContent += (i === 0 ? '' : ' ') + words[i];
+      
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempMessage.id ? { ...m, content: displayedContent } : m
+        )
+      );
     }
   };
-  
-  // Отправка сообщения
+
+  // ОТПРАВКА СООБЩЕНИЯ
   const sendMessage = async (messageText: string) => {
-    if (!user || !session || !messageText.trim()) return;
+    if (!messageText.trim() || isLoading || !session || !user) return;
     
-    setIsLoading(true);
-    
-    // Добавляем сообщение пользователя в UI сразу
-    const userMessage: ChatMessage = {
-      id: `user_${Date.now()}`,
-      type: 'user',
-      content: messageText,
-      timestamp: new Date().toISOString()
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
+    const tempId = `temp-${Date.now()}`;
     
     try {
-      console.group('🤖 AI Diary - Send Message');
-      console.log('📤 Request:', {
-        userId: user.id,
-        sessionId: sessionId || 'new session',
-        messageLength: messageText.length,
+      setIsLoading(true);
+      
+      // 1. Optimistic UI
+      const userMessage: ChatMessage = {
+        id: tempId,
+        content: messageText.trim(),
+        type: 'user',
         timestamp: new Date().toISOString()
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      
+      // 2. Отправка на webhook
+      const response = await fetch(`${config.webhooks.diary}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userJwt: session.access_token,
+          user_id: user.id,
+          message: messageText.trim(),
+          session_id: sessionId,
+          locale: 'ru'
+        })
       });
       
-      // Отправляем на backend
-      const response = await aiDiaryService.sendMessage(
-        session.access_token,
-        user.id,
-        messageText,
-        sessionId,
-        'ru'
+      // Детальная обработка HTTP ошибок
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Webhook error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        
+        if (response.status === 500) {
+          throw new Error('Сервер временно недоступен. Попробуйте позже.');
+        } else if (response.status === 401 || response.status === 403) {
+          throw new Error('Ошибка авторизации. Перезайдите в приложение.');
+        } else if (response.status === 400) {
+          throw new Error('Некорректный запрос. Проверьте данные.');
+        }
+        
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Webhook response:', {
+        success: data.success,
+        session_id: data.data?.session_id,
+        has_ai_response: !!data.data?.ai_response
+      });
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Unknown error');
+      }
+      
+      const responseData = data.data;
+      
+      // 3. Обновление session_id для новой сессии
+      if (responseData.session_id && responseData.session_id !== sessionId) {
+        console.log('🆕 New session created:', responseData.session_id);
+        setSessionId(responseData.session_id);
+        localStorage.setItem('ai_diary_session_id', responseData.session_id);
+      }
+      
+      // 4. Заменяем временный ID на реальный
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempId
+            ? { ...msg, id: `${responseData.saved_entry_id}-user` }
+            : msg
+        )
       );
       
-      console.log('📥 API Response:', {
-        success: response?.success,
-        hasData: !!response?.data,
-        hasAiResponse: !!response?.data?.ai_response,
-        hasSuggestions: response?.data?.suggestions?.length || 0,
-        hasEmotions: !!response?.data?.emotions,
-        savedEntryId: response?.data?.saved_entry_id,
-        sessionId: response?.data?.session_id
-      });
-      console.groupEnd();
-      
-      // Валидация ответа от API
-      if (!response || !response.data || typeof response.data !== 'object') {
-        console.error('❌ Invalid API response format:', response);
-        toast({
-          title: 'Ошибка формата ответа',
-          description: 'Сервер вернул некорректные данные',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
-        return;
+      // 5. Fallback через 30 секунд если Realtime не сработал
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
       }
       
-      if (!response.success) {
-        console.error('❌ API returned success=false:', response.data);
-        toast({
-          title: 'Ошибка сервера',
-          description: 'Сервер вернул ошибку',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      // Проверка обязательных полей
-      const requiredFields = ['ai_response', 'suggestions', 'emotions', 'analysis', 'session_id'];
-      const missingFields = requiredFields.filter(field => !response.data[field]);
-      
-      if (missingFields.length > 0) {
-        console.warn('⚠️ Missing fields in API response:', missingFields);
-      }
-      
-      if (response.success) {
-        // Сохраняем или обновляем session_id
-        const newSessionId = response.data.session_id;
-        if (!sessionId) {
-          setSessionId(newSessionId);
-          aiDiaryService.setCurrentSessionId(newSessionId);
-          subscribeToSession(newSessionId);
-        }
-        
-        // Показываем индикатор "AI печатает..."
-        setIsTyping(true);
-        
-        // FALLBACK: если через N секунд нет ответа через Realtime, добавляем вручную
-        const isMock = Boolean(
-          response?.data?.is_mock ||
-          response?.data?.session_id?.startsWith?.('mock_session_') ||
-          response?.data?.saved_entry_id?.startsWith?.('mock_')
-        );
-        const timeoutMs = isMock ? 1200 : 30000;
-        
-        const fallbackTimeout = setTimeout(() => {
-          console.warn('⚠️ Realtime timeout - using fallback response');
-          console.log('Fallback data:', {
-            messageId: response.data.saved_entry_id,
-            hasResponse: !!response.data.ai_response
-          });
+      fallbackTimeoutRef.current = setTimeout(() => {
+        setMessages((prev) => {
+          const hasAIResponse = prev.some(
+            (m) => m.type === 'ai' && m.timestamp > userMessage.timestamp
+          );
           
-          if (response.data.ai_response) {
+          if (!hasAIResponse) {
+            console.warn('⏰ Realtime timeout - using fallback');
             const aiMessage: ChatMessage = {
-              id: response.data.saved_entry_id || `ai_${Date.now()}`,
+              id: responseData.saved_entry_id,
+              content: responseData.ai_response,
               type: 'ai',
-              content: response.data.ai_response,
-              suggestions: response.data.suggestions || [],
-              emotions: response.data.emotions,
-              analysis: response.data.analysis,
-              timestamp: response.data.timestamp || new Date().toISOString()
+              timestamp: responseData.timestamp,
+              suggestions: responseData.suggestions,
+              emotions: responseData.emotions,
+              analysis: responseData.analysis
             };
-            
-            setMessages(prev => {
-              // Проверяем, не добавили ли уже это сообщение
-              const exists = prev.find(m => m.id === aiMessage.id);
-              if (exists) return prev;
-              return [...prev, aiMessage];
-            });
-            
-            setIsTyping(false);
+            return [...prev, aiMessage];
           }
-        }, timeoutMs);
-        
-        // Сохраняем таймер для очистки
-        (window as any).__fallbackTimer = fallbackTimeout;
-      }
+          
+          return prev;
+        });
+        setIsTyping(false);
+      }, 30000);
+      
     } catch (error: any) {
-      console.group('❌ AI Diary Error');
-      console.error('Error details:', error);
+      console.error('❌ Send message error:', error);
       
-      if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
-        
-        // Специфичные ошибки
-        if (error.response.status === 401) {
-          toast({
-            title: 'Ошибка авторизации',
-            description: 'Попробуйте перелогиниться',
-            variant: 'destructive'
-          });
-        } else if (error.response.status === 500) {
-          toast({
-            title: 'Ошибка сервера',
-            description: 'Попробуйте позже',
-            variant: 'destructive'
-          });
-        } else {
-          toast({
-            title: 'Ошибка отправки',
-            description: `Статус: ${error.response.status}`,
-            variant: 'destructive'
-          });
-        }
-      } else if (error.request) {
-        console.error('No response received');
-        toast({
-          title: 'Нет связи с сервером',
-          description: 'Проверьте подключение к интернету',
-          variant: 'destructive'
-        });
+      if (error.message.includes('Failed to fetch')) {
+        toast.error('Нет подключения к серверу');
+      } else if (error.message.includes('500')) {
+        toast.error('Ошибка сервера. Попробуйте позже');
+      } else if (error.message.includes('авторизации')) {
+        toast.error(error.message);
       } else {
-        console.error('Request setup error:', error.message);
-        toast({
-          title: 'Ошибка запроса',
-          description: error.message,
-          variant: 'destructive'
-        });
+        toast.error('Не удалось отправить сообщение');
       }
       
-      console.groupEnd();
-      
-      // Удаляем сообщение пользователя при ошибке
-      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
-      
-      // Очищаем fallback таймер
-      if ((window as any).__fallbackTimer) {
-        clearTimeout((window as any).__fallbackTimer);
-        delete (window as any).__fallbackTimer;
-      }
-      
-      setIsTyping(false);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setIsLoading(false);
     }
   };
-  
-  // Начать новую сессию
+
+  // НОВАЯ СЕССИЯ
   const startNewSession = async () => {
-    if (!user) return;
-    
-    // Отписываемся от текущей Realtime подписки
-    if (realtimeChannelRef.current) {
-      realtimeChannelRef.current.unsubscribe();
+    try {
+      if (realtimeChannel) {
+        realtimeChannel.unsubscribe();
+      }
+      
+      if (sessionId) {
+        await aiDiarySessionsService.endSession(sessionId);
+      }
+      
+      localStorage.removeItem('ai_diary_session_id');
+      setSessionId(null);
+      setMessages([WELCOME_MESSAGE]);
+      
+      toast.success('Новая сессия создана');
+    } catch (error) {
+      console.error('❌ Start new session error:', error);
+      toast.error('Не удалось создать новую сессию');
     }
-    
-    // Создаем новую сессию
-    const newSession = await aiDiarySessionsService.createSession(user.id);
-    setSessionId(newSession.session_id);
-    // Сразу подписываемся на Realtime для новой сессии
-    subscribeToSession(newSession.session_id);
-    
-    // Очищаем сообщения и показываем приветствие
-    setMessages([{
-      id: 'welcome_new',
-      type: 'system',
-      content: 'Начинаем новую беседу. О чем хотели бы поговорить?',
-      suggestions: [
-        'Расскажу о своих мыслях',
-        'Хочу поделиться переживаниями',
-        'Нужна поддержка',
-        'Обсудим планы'
-      ],
-      timestamp: new Date().toISOString()
-    }]);
-    
-    toast({
-      title: 'Новая сессия',
-      description: 'Создана новая сессия для диалога',
-    });
   };
-  
-  // Завершить сессию
+
+  // ЗАВЕРШЕНИЕ СЕССИИ
   const endSession = async () => {
     if (!sessionId) return;
     
-    // Очищаем fallback таймер если есть
-    if ((window as any).__fallbackTimer) {
-      clearTimeout((window as any).__fallbackTimer);
-      delete (window as any).__fallbackTimer;
+    try {
+      await aiDiarySessionsService.endSession(sessionId);
+      
+      if (realtimeChannel) {
+        realtimeChannel.unsubscribe();
+      }
+      
+      localStorage.removeItem('ai_diary_session_id');
+      setSessionId(null);
+      setMessages([WELCOME_MESSAGE]);
+      
+      toast.success('Сессия завершена');
+    } catch (error) {
+      console.error('❌ End session error:', error);
+      toast.error('Не удалось завершить сессию');
     }
-    
-    await aiDiarySessionsService.endSession(sessionId);
-    
-    // Отписываемся от Realtime
-    if (realtimeChannelRef.current) {
-      realtimeChannelRef.current.unsubscribe();
-    }
-    
-    setSessionId(null);
-    setMessages([]);
-    
-    toast({
-      title: 'Сессия завершена',
-      description: 'Ваша беседа сохранена в истории',
-    });
   };
-  
-  // Клик по suggestion
+
+  // КЛИК ПО SUGGESTION
   const handleSuggestionClick = (suggestion: string) => {
     sendMessage(suggestion);
   };
-  
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return {
     messages,
     sessionId,
     isLoading,
     isTyping,
+    sessionStatus,
+    realtimeChannel,
     sendMessage,
     startNewSession,
     endSession,
