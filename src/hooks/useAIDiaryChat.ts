@@ -271,6 +271,13 @@ export function useAIDiaryChat() {
       setMessages((prev) => [...prev, userMessage]);
       
       // 2. Отправка на webhook
+      console.log('📤 Sending to webhook:', {
+        url: config.webhooks.diary,
+        user_id: user.id,
+        session_id: sessionId || 'NEW',
+        message_preview: messageText.substring(0, 30) + '...'
+      });
+      
       const response = await fetch(`${config.webhooks.diary}`, {
         method: 'POST',
         headers: {
@@ -285,13 +292,15 @@ export function useAIDiaryChat() {
         })
       });
       
+      console.log('📥 Response status:', response.status, response.statusText);
+      
       // Детальная обработка HTTP ошибок
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Webhook error:', {
+        console.error('❌ Webhook HTTP error:', {
           status: response.status,
           statusText: response.statusText,
-          body: errorText
+          body: errorText.substring(0, 200)
         });
         
         if (response.status === 500) {
@@ -305,15 +314,44 @@ export function useAIDiaryChat() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const data = await response.json();
-      console.log('✅ Webhook response:', {
+      // Получаем текст ответа
+      const responseText = await response.text();
+      console.log('📥 Raw response:', {
+        length: responseText.length,
+        preview: responseText.substring(0, 200)
+      });
+      
+      // Проверяем что ответ не пустой
+      if (!responseText || responseText.trim().length === 0) {
+        console.error('❌ Empty response from webhook');
+        throw new Error('Сервер вернул пустой ответ. Проверьте настройки n8n workflow.');
+      }
+      
+      // Парсим JSON
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        console.error('Response text:', responseText);
+        throw new Error('Сервер вернул некорректный формат данных (не JSON)');
+      }
+      
+      console.log('✅ Parsed webhook response:', {
         success: data.success,
         session_id: data.data?.session_id,
-        has_ai_response: !!data.data?.ai_response
+        has_ai_response: !!data.data?.ai_response,
+        ai_response_length: data.data?.ai_response?.length || 0,
+        suggestions_count: data.data?.suggestions?.length || 0
       });
       
       if (!data.success) {
-        throw new Error(data.message || 'Unknown error');
+        throw new Error(data.message || 'API вернул ошибку');
+      }
+      
+      if (!data.data || !data.data.ai_response) {
+        console.error('❌ Missing ai_response in data:', data);
+        throw new Error('Отсутствует ответ AI в данных');
       }
       
       const responseData = data.data;
