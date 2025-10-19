@@ -91,16 +91,39 @@ class AIDiaryService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const data = await response.json();
-      console.log('✅ Webhook response:', {
-        success: data.success,
-        session_id: data.data?.session_id,
-        has_ai_response: !!data.data?.ai_response
-      });
+      // Получаем текст ответа
+      const responseText = await response.text();
+      console.log('📥 Raw response length:', responseText.length);
       
-      if (!data.success) {
-        throw new Error(data.message || 'Unknown error');
+      // Проверяем что ответ не пустой
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('Сервер вернул пустой ответ');
       }
+      
+      // Парсим JSON
+      let data: AIResponse;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        console.error('Response preview:', responseText.substring(0, 500));
+        throw new Error('Сервер вернул некорректный формат данных');
+      }
+      
+      // Валидация структуры ответа
+      if (!data.success) {
+        throw new Error('API вернул ошибку: ' + (data.message || 'Unknown error'));
+      }
+      
+      if (!data.data || !data.data.ai_response) {
+        throw new Error('Отсутствует ответ AI в данных');
+      }
+      
+      console.log('✅ Webhook success:', {
+        session_id: data.data.session_id,
+        response_length: data.data.ai_response.length,
+        suggestions_count: data.data.suggestions?.length || 0
+      });
       
       return data;
       
