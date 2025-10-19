@@ -107,32 +107,46 @@ export function useAIDiaryChat() {
       const chatMessages: ChatMessage[] = [];
       
       history.forEach((msg) => {
+        // ✅ ВАЛИДАЦИЯ: пропускаем записи с null/undefined полями
+        if (!msg.id || !msg.created_at) {
+          console.warn('⚠️ Skipping invalid message:', msg);
+          return;
+        }
+        
         // User message
-        if (msg.message) {
-          chatMessages.push({
-            id: `${msg.id}-user`,
-            content: msg.message,
-            type: 'user',
-            timestamp: msg.created_at
-          });
+        if (msg.message && msg.message.trim()) {
+          const userMsgId = `${msg.id}-user`;
+          
+          // Проверка на дубликаты
+          if (!chatMessages.some(m => m.id === userMsgId)) {
+            chatMessages.push({
+              id: userMsgId,
+              content: msg.message,
+              type: 'user',
+              timestamp: msg.created_at
+            });
+          }
         }
         
         // AI response
-        if (msg.ai_response) {
-          chatMessages.push({
-            id: msg.id,
-            content: msg.ai_response,
-            type: 'ai',
-            timestamp: msg.created_at,
-            suggestions: msg.suggestions || [],
-            emotions: msg.emotions,
-            analysis: msg.analysis
-          });
+        if (msg.ai_response && msg.ai_response.trim()) {
+          // Проверка на дубликаты
+          if (!chatMessages.some(m => m.id === msg.id)) {
+            chatMessages.push({
+              id: msg.id,
+              content: msg.ai_response,
+              type: 'ai',
+              timestamp: msg.created_at,
+              suggestions: msg.suggestions || [],
+              emotions: msg.emotions,
+              analysis: msg.analysis
+            });
+          }
         }
       });
       
       setMessages(chatMessages);
-      console.log('✅ Loaded', chatMessages.length, 'messages');
+      console.log('✅ Loaded', chatMessages.length, 'messages from', history.length, 'records');
       
     } catch (error) {
       console.error('❌ Load history error:', error);
@@ -175,8 +189,12 @@ export function useAIDiaryChat() {
         console.log('Realtime status:', status);
         if (status === 'SUBSCRIBED') {
           console.log('✅ Subscribed to Realtime');
+          setSessionStatus('active');
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Realtime error');
+          console.error('❌ Realtime connection error, will retry...');
+          // Не показываем ошибку пользователю, т.к. будет автоматический ретрай
+        } else if (status === 'CLOSED') {
+          console.warn('⚠️ Realtime connection closed');
         }
       });
     
@@ -190,12 +208,19 @@ export function useAIDiaryChat() {
 
   // ОБРАБОТКА НОВОГО AI СООБЩЕНИЯ ИЗ REALTIME
   const handleNewAIMessage = (dbMessage: any) => {
+    // ✅ ВАЛИДАЦИЯ входящих данных
+    if (!dbMessage.id || !dbMessage.ai_response) {
+      console.warn('⚠️ Invalid Realtime message:', dbMessage);
+      return;
+    }
+    
     // Очищаем fallback таймер
     if (fallbackTimeoutRef.current) {
       clearTimeout(fallbackTimeoutRef.current);
     }
     
     setMessages((prev) => {
+      // Проверка на дубликаты по ID
       const exists = prev.some((m) => m.id === dbMessage.id);
       if (exists) {
         console.log('⚠️ Message already exists:', dbMessage.id);
